@@ -1,0 +1,604 @@
+{
+  "timetables": [
+        {
+            "SectionCategory": "SectionCategory 1",
+            "Sections":[
+                {
+                    "Name":"A",
+                    "timetable":{
+                        "Monday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM",
+                                "teacherID":"12334"
+                            }
+                        ],
+                        "Tuesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Physics",
+                                "startTime":"12:00 PM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "Biology",
+                                "startTime":"7:00 AM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Histroy",
+                                "startTime":"8:00 PM",
+                                "teacherID":"12334"
+                            }
+                        ],
+                        "Wednesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "ART",
+                                "startTime":"12:00 PM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Physics",
+                                "startTime":"8:00 PM",
+                                "teacherID":"12334"
+                            }
+                        ],
+                        "Thursday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Chemistry",
+                                "startTime":"12:00 PM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "Physics",
+                                "startTime":"7:00 AM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "English",
+                                "startTime":"8:00 PM",
+                                "teacherID":"12334"
+                            }
+                        ],
+                        "Friday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Animations",
+                                "startTime":"12:00 PM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "Biology",
+                                "startTime":"7:00 AM",
+                                "teacherID":"12334"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Math",
+                                "startTime":"8:00 PM",
+                                "teacherID":"12334"
+                            }
+                        ],
+                        "Saturday":[],
+                        "Sunday":[]
+                    }
+                },
+                {
+                    "Name":"B",
+                    "timetable":{
+                        "Monday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Tuesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "wednesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Thursday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Friday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Saturday":[],
+                        "Sunday":[]
+                    }
+                }
+            ]
+        },
+        {
+            "SectionCategory": "SectionCategory 2",
+            "Sections":[
+                {
+                    "Name":"A",
+                    "timetable":{
+                        "Monday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Tuesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "wednesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Thursday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Friday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Saturday":[],
+                        "Sunday":[]
+                    }
+                },
+                {
+                    "Name":"B",
+                    "timetable":{
+                        "Monday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Tuesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "wednesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Thursday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Friday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Saturday":[],
+                        "Sunday":[]
+                    }
+                }
+            ]
+        },
+        {
+            "SectionCategory": "SectionCategory 3",
+            "Sections":[
+                {
+                    "Name":"A",
+                    "timetable":{
+                        "Monday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Tuesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "wednesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Thursday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Friday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Saturday":[],
+                        "Sunday":[]
+                    }
+                },
+                {
+                    "Name":"B",
+                    "timetable":{
+                        "Monday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Tuesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "wednesday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Thursday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Friday":[
+                            {
+                                "timeStampId":1,
+                                "subject": "Math",
+                                "startTime":"12:00 PM"
+                            },
+                            {
+                                "timeStampId":2,
+                                "subject": "English",
+                                "startTime":"7:00 AM"
+                            },
+                            {
+                                "timeStampId":3,
+                                "subject": "Chemistry",
+                                "startTime":"8:00 PM"
+                            }
+                        ],
+                        "Saturday":[],
+                        "Sunday":[]
+                    }
+                }
+            ]
+        }
+    ]
+}

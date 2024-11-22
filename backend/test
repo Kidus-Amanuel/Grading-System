@@ -1,0 +1,12 @@
+my-backend/
+├── index.js         # Main entry point
+├── package.json     # Project config
+├── .env             # Environment variables
+├── routes/          # Define API routes
+│   └── example.js
+├── controllers/     # Handle business logic
+│   └── exampleController.js
+├── models/          # Define database models
+│   └── exampleModel.js
+├── middlewares/     # Middleware functions
+└── utils/           # Utility functions
