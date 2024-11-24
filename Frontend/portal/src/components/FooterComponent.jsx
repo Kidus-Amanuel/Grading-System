@@ -31,8 +31,8 @@ export function FooterComponent() {
             </Footer.LinkGroup>
           </div>
         </div>
-        <div className="w-full bg-[#8c79ba] px-4 py-6 sm:flex sm:items-center sm:justify-between">
-          <Footer.Copyright href="https://www.spectrumenginnering.com/" by="spectrum Enginnering™" year={2024} className="text-[#E9F0CD]"/>
+        <div className="w-full bg-[#2c3e50] px-4 py-6 sm:flex sm:items-center sm:justify-between">
+          <Footer.Copyright href="https://www.spectrumenginnering.com/" by="STUDENT GRADING SYSTEM™" year={2024} className="text-[#E9F0CD]"/>
           <div className="mt-4 flex space-x-6 sm:mt-0 sm:justify-center">
             <Footer.Icon href="https://www.facebook.com/softnetsc?mibextid=ZbWKwL" icon={BsFacebook} className="text-[#E9F0CD]"/>
             <Footer.Icon href="https://www.instagram.com/softnet2023?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw%3D%3D" icon={BsInstagram} className="text-[#E9F0CD]"/>

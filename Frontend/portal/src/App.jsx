@@ -22,17 +22,19 @@ import StudentCourses from './pages/Student/StudentCourses.jsx';
 import StudentGpa from './pages/Student/StudentGpa.jsx';
 import StudentProfile from './pages/Student/StudentProfile.jsx';
 import StudentSide from './components/Student/StudentSide.jsx';
+import DepartCourses from './components/collegeDean/DepartCourses.jsx';
 
 function App() {
   const location = useLocation();
 
   // Define route groups
-  const deanRoutes = ['/Dashboard', '/Courses', '/Management', '/Notification', '/Profile'];
+  const deanRoutes = ['/Dashboard', '/Courses', '/Management', '/Notification', '/Profile','/DepartCourses'];
   const departmentRoutes = [
     '/DepartmentProfile',
     '/DepartmentCourses',
     '/DepartmentInstructor',
     '/DepartmentStudents',
+    
   ];
   const instructorRoutes = ['/InstructorCourses', '/InstructorGrade', '/InstructorProfile'];
   const studentRoutes = ['/StudentCourses', '/StudentGpa', '/StudentProfile'];
@@ -64,6 +66,7 @@ function App() {
           <Route path="/Management" element={<Management />} />
           <Route path="/Notification" element={<Notification />} />
           <Route path="/Profile" element={<Profile />} />
+          <Route path="/DepartCourses" element={<DepartCourses/>} />
           <Route path="/Login" element={<Login />} />
           <Route path="/DepartmentProfile" element={<DepartmentProfile />} />
           <Route path="/DepartmentCourses" element={<DepartmentCourses />} />

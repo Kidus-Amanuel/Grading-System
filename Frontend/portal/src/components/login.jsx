@@ -84,7 +84,7 @@ export default function Login({ open, onClose }) {
                 </div>
 
                 <div className="flex flex-col justify-center items-center">
-                    <h1 className="text-4xl font-bold text-center text-purple-700 mb-2">Welcome</h1>
+                    <h1 className="text-4xl font-bold text-center text-[#2c3e50] mb-2">Welcome</h1>
 
                     {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -119,7 +119,7 @@ export default function Login({ open, onClose }) {
                         </div>
 
                         <div>
-                            <button className="w-full bg-purple-700 hover:bg-purple-900 text-white font-bold py-2 px-4 rounded-lg">
+                            <button className="w-full bg-[#2c3e50] hover:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg">
                                 Log In
                             </button>
                         </div>
