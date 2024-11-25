@@ -23,6 +23,9 @@ import StudentGpa from './pages/Student/StudentGpa.jsx';
 import StudentProfile from './pages/Student/StudentProfile.jsx';
 import StudentSide from './components/Student/StudentSide.jsx';
 import DepartCourses from './components/collegeDean/DepartCourses.jsx';
+import InsCourseStudent from './components/Instructor/InsCourseStudent.jsx';
+import Assessment from './components/Instructor/Assessment.jsx';
+import StudentGrade from './components/Instructor/StudentGrade.jsx';
 
 function App() {
   const location = useLocation();
@@ -36,7 +39,7 @@ function App() {
     '/DepartmentStudents',
     
   ];
-  const instructorRoutes = ['/InstructorCourses', '/InstructorGrade', '/InstructorProfile'];
+  const instructorRoutes = ['/InstructorCourses', '/InstructorGrade', '/InstructorProfile','/InsCourseStudent','/Assessment','/StudentGrade'];
   const studentRoutes = ['/StudentCourses', '/StudentGpa', '/StudentProfile'];
 
   // Determine which sidebar to show
@@ -74,6 +77,9 @@ function App() {
           <Route path="/DepartmentStudents" element={<DepartmentStudents />} />
           <Route path="/InstructorCourses" element={<InstructorCourses />} />
           <Route path="/InstructorGrade" element={<InstructorGrade />} />
+          <Route path="/InsCourseStudent" element={<InsCourseStudent />} />
+          <Route path="/Assessment" element={<Assessment />} />
+          <Route path="/StudentGrade" element={<StudentGrade/>} />
           <Route path="/InstructorProfile" element={<InstructorProfile />} />
           <Route path="/StudentCourses" element={<StudentCourses />} />
           <Route path="/StudentGpa" element={<StudentGpa />} />
