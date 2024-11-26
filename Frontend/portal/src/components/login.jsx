@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate } from 'react-router-dom'; 
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Import Axios for API calls
 
 const MODAL_STYLES = {
@@ -13,8 +13,8 @@ const MODAL_STYLES = {
     borderRadius: '10px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
     zIndex: 1000,
-    width: '90%', 
-    maxWidth: '400px', 
+    width: '90%',
+    maxWidth: '400px',
     height: '75%',
 };
 
@@ -45,7 +45,7 @@ export default function Login({ open, onClose }) {
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        
+
         if (!UniversityID || !password) {
             setError('Please fill in both fields.');
             return;
@@ -57,9 +57,13 @@ export default function Login({ open, onClose }) {
                 password,
             });
 
-            // Navigate based on the role returned from the backend
+            // Save JWT token to localStorage or sessionStorage for subsequent requests
+            localStorage.setItem('token', response.data.token);
+
+            // Get the user role and route from the response
             const { route } = response.data;
             navigate(route); // Navigate to the appropriate route
+
         } catch (error) {
             if (error.response) {
                 setError(error.response.data.message); // Set error message from backend

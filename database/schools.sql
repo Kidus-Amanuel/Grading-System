@@ -37,6 +37,7 @@ CREATE TABLE department (
     Department_id INT AUTO_INCREMENT PRIMARY KEY,
     Departmentname VARCHAR(255) NOT NULL,
     College_id INT,
+    Years INT NOT NULL,
     FOREIGN KEY (college_id) REFERENCES college(College_id)
 );
 

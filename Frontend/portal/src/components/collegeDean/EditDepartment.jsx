@@ -1,5 +1,6 @@
 import ReactDom from 'react-dom';
 import { useState } from 'react';
+import axios from 'axios';
 
 const MODAL_STYLES = {
     position: 'fixed',
@@ -11,9 +12,9 @@ const MODAL_STYLES = {
     borderRadius: '10px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
     zIndex: 1000,
-    width: '90%', // Responsive width
-    maxWidth: '400px', // Max width for larger screens
-    height: 'auto', // Adjust height to fit content
+    width: '90%',
+    maxWidth: '400px',
+    height: 'auto',
 };
 
 const OVERLAY_STYLES = {
@@ -28,8 +29,8 @@ const OVERLAY_STYLES = {
 
 export default function EditDepartment({ open, onClose, department, onSubmit }) {
     const [departmentName, setDepartmentName] = useState(department?.name || '');
-    const [yearsToFinish, setYearsToFinish] = useState(department?.year || '');
-    const [semestersPerYear, setSemestersPerYear] = useState([]);
+    const [yearsToFinish, setYearsToFinish] = useState(department?.years || '');
+    const [semestersPerYear, setSemestersPerYear] = useState(department?.semestersPerYear || []);
 
     const handleSemestersChange = (index, value) => {
         const updatedSemesters = [...semestersPerYear];
@@ -40,19 +41,46 @@ export default function EditDepartment({ open, onClose, department, onSubmit }) 
     const handleYearsChange = (e) => {
         const newYears = e.target.value;
         setYearsToFinish(newYears);
-        // Ensure semestersPerYear is updated to match the new number of years
         const updatedSemesters = Array.from({ length: newYears }, (_, index) => semestersPerYear[index] || '');
         setSemestersPerYear(updatedSemesters);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        onSubmit({
+
+        const token = localStorage.getItem('token');  // Assume the token is stored in localStorage
+        if (!token) {
+            alert('No token found');
+            return;
+        }
+
+        const updatedDepartmentData = {
             name: departmentName,
-            year: yearsToFinish,
-            semesters: semestersPerYear,
-        });
-        onClose(); // Close the modal after submission
+            years: yearsToFinish,
+            semestersPerYear: semestersPerYear,
+        };
+
+        try {
+            // Send PUT request to backend API
+            const response = await axios.put(
+                `http://localhost:5000/api/departments/${department.id}`,
+                updatedDepartmentData,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    }
+                }
+            );
+
+            // Handle successful response (update frontend state, close modal, etc.)
+            alert('Department updated successfully!');
+            onSubmit(response.data);
+            onClose(); // Close the modal after submission
+        } catch (error) {
+            console.error('Error updating department:', error);
+            alert('Failed to update department. Please try again.');
+        }
     };
 
     if (!open) return null;
@@ -137,6 +165,7 @@ export default function EditDepartment({ open, onClose, department, onSubmit }) 
                 </form>
             </div>
         </>,
+
         document.getElementById('portal')
     );
 }

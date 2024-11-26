@@ -437,3 +437,245 @@ const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+
+app.get('/api/departments', verifyToken, async (req, res) => {
+  const { collegeId } = req.user; // Extract collegeId from JWT payload
+
+  if (!collegeId) {
+    return res.status(403).json({ message: 'Access denied. College ID not found.' });
+  }
+
+  try {
+    const [departments] = await db.query(
+      `SELECT 
+        d.Department_id AS id,
+        d.Departmentname AS name,
+        d.Years AS years,
+        (d.Years * 2) AS semesters,
+        c.Collegename AS college
+      FROM department d
+      LEFT JOIN college c ON d.College_id = c.College_id
+      WHERE d.College_id = ?`,
+      [collegeId]
+    );
+
+    res.status(200).json(departments);
+  } catch (error) {
+    console.error('Error fetching departments:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Adding a department
+app.post('/api/departments', verifyToken, async (req, res) => {
+  const { name, years, semestersPerYear } = req.body;
+  const { collegeId } = req.user; // College ID from JWT payload
+
+  if (!name || !years || !Array.isArray(semestersPerYear)) {
+    return res.status(400).json({ 
+      message: 'Name, years, and semesters per year are required.' 
+    });
+  }
+
+  if (semestersPerYear.length !== parseInt(years, 10)) {
+    return res.status(400).json({ 
+      message: 'The number of entries in semestersPerYear must match the number of years.' 
+    });
+  }
+
+  try {
+    const [departmentResult] = await db.query(
+      'INSERT INTO department (Departmentname, Years, College_id) VALUES (?, ?, ?)',
+      [name, years, collegeId]
+    );
+
+    const departmentId = departmentResult.insertId;
+
+    const semesterPromises = [];
+    semestersPerYear.forEach((numSemesters, yearIndex) => {
+      for (let semesterIndex = 1; semesterIndex <= numSemesters; semesterIndex++) {
+        semesterPromises.push(
+          db.query(
+            'INSERT INTO semesters (Semestername, Years, Department_id, Max_ects) VALUES (?, ?, ?, ?)',
+            [
+              `Year ${yearIndex + 1}, Semester ${semesterIndex}`,
+              yearIndex + 1,
+              departmentId,
+              30 // Default Max_ects value
+            ]
+          )
+        );
+      }
+    });
+
+    await Promise.all(semesterPromises);
+
+    res.status(201).json({
+      id: departmentId,
+      name,
+      years,
+      collegeId,
+      semestersPerYear,
+    });
+  } catch (error) {
+    console.error('Error adding department:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Editing a department
+app.put('/api/departments/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { name, years, semestersPerYear } = req.body;
+
+  if (!name || !years || !Array.isArray(semestersPerYear)) {
+    return res.status(400).json({ 
+      message: 'Name, years, and semesters per year are required.' 
+    });
+  }
+
+  if (semestersPerYear.length !== parseInt(years, 10)) {
+    return res.status(400).json({ 
+      message: 'The number of entries in semestersPerYear must match the number of years.' 
+    });
+  }
+
+  try {
+    // Update department details
+    const [updateResult] = await db.query(
+      'UPDATE department SET Departmentname = ?, Years = ? WHERE Department_id = ?',
+      [name, years, id]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(404).json({ message: 'Department not found.' });
+    }
+
+    // Clear existing semesters for the department
+    await db.query('DELETE FROM semesters WHERE Department_id = ?', [id]);
+
+    // Insert updated semesters for the department
+    const semesterPromises = [];
+    semestersPerYear.forEach((numSemesters, yearIndex) => {
+      for (let semesterIndex = 1; semesterIndex <= numSemesters; semesterIndex++) {
+        semesterPromises.push(
+          db.query(
+            'INSERT INTO semesters (Semestername, Years, Department_id, Max_ects) VALUES (?, ?, ?, ?)',
+            [
+              `Year ${yearIndex + 1}, Semester ${semesterIndex}`,
+              yearIndex + 1,
+              id,
+              30 // Default Max_ects value
+            ]
+          )
+        );
+      }
+    });
+
+    await Promise.all(semesterPromises);
+
+    res.json({
+      id,
+      name,
+      years,
+      semestersPerYear,
+    });
+  } catch (error) {
+    console.error('Error updating department:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+// deleteing department
+app.delete('/api/departments/:id', async (req, res) => {
+  const { id } = req.params;
+
+  const connection = await db.getConnection(); // Get a connection from the pool
+  try {
+    await connection.beginTransaction(); // Start a transaction
+
+    // Step 1: Delete from the most dependent tables
+    await connection.query(
+      'DELETE FROM student_assessment_scores WHERE Course_id IN (SELECT Course_id FROM course WHERE Department_id = ?)',
+      [id]
+    );
+
+    await connection.query(
+      'DELETE FROM assessment_component WHERE Course_id IN (SELECT Course_id FROM course WHERE Department_id = ?)',
+      [id]
+    );
+
+    await connection.query(
+      'DELETE FROM student_record_table WHERE Course_id IN (SELECT Course_id FROM course WHERE Department_id = ?)',
+      [id]
+    );
+
+    await connection.query(
+      'DELETE FROM dean_adjustments WHERE Course_id IN (SELECT Course_id FROM course WHERE Department_id = ?)',
+      [id]
+    );
+
+    await connection.query(
+      'DELETE FROM enrollment WHERE Course_id IN (SELECT Course_id FROM course WHERE Department_id = ?)',
+      [id]
+    );
+
+    await connection.query(
+      'DELETE FROM enrollment WHERE Semester_id IN (SELECT Semester_id FROM semesters WHERE Department_id = ?)',
+      [id]
+    );
+
+    await connection.query(
+      'DELETE FROM assignment_course WHERE Semester_id IN (SELECT Semester_id FROM semesters WHERE Department_id = ?)',
+      [id]
+    );
+
+    await connection.query(
+      'DELETE FROM assignment_course WHERE Course_id IN (SELECT Course_id FROM course WHERE Department_id = ?)',
+      [id]
+    );
+
+    await connection.query(
+      'DELETE FROM gpa_table WHERE Semester_id IN (SELECT Semester_id FROM semesters WHERE Department_id = ?)',
+      [id]
+    );
+
+    await connection.query(
+      'DELETE FROM prerequisite_course WHERE Course_id IN (SELECT Course_id FROM course WHERE Department_id = ?)',
+      [id]
+    );
+
+    await connection.query(
+      'DELETE FROM prerequisite_course WHERE Prerequisite_courses_id IN (SELECT Course_id FROM course WHERE Department_id = ?)',
+      [id]
+    );
+
+    // Step 2: Delete courses, semesters, and graduation requirements
+    await connection.query('DELETE FROM course WHERE Department_id = ?', [id]);
+    await connection.query('DELETE FROM semesters WHERE Department_id = ?', [id]);
+    await connection.query('DELETE FROM graduation_requirements WHERE Department_id = ?', [id]);
+
+    // Step 3: Delete users and students
+    await connection.query('DELETE FROM student WHERE Department_id = ?', [id]);
+    await connection.query('DELETE FROM user WHERE Department_id = ?', [id]);
+
+    // Step 4: Finally, delete the department
+    const [result] = await connection.query('DELETE FROM department WHERE Department_id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+      await connection.rollback(); // Rollback if the department does not exist
+      return res.status(404).json({ message: 'Department not found.' });
+    }
+
+    await connection.commit(); // Commit the transaction
+    res.status(204).send();
+  } catch (error) {
+    await connection.rollback(); // Rollback on error
+    console.error('Error deleting department:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  } finally {
+    connection.release(); // Release the connection back to the pool
+  }
+});
