@@ -1,16 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-
-const departmentCourses = [
-    { name: "Computer Science", totalCourses: 10, totalCredits: 30 },
-    { name: "Electrical Engineering", totalCourses: 8, totalCredits: 28 },
-    { name: "Mechanical Engineering", totalCourses: 12, totalCredits: 36 },
-    { name: "Civil Engineering", totalCourses: 9, totalCredits: 27 },
-    { name: "Business Administration", totalCourses: 7, totalCredits: 21 },
-    { name: "Graphic Design", totalCourses: 6, totalCredits: 18 },
-];
+import axios from 'axios';
 
 export default function DepCourseInfo() {
+    const [departmentCourses, setDepartmentCourses] = useState([]);
+
+    // Fetch department courses data on component mount
+    useEffect(() => {
+        // Replace with your API URL
+        axios.get('http://localhost:5000/api/courses', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+            .then((response) => {
+                setDepartmentCourses(response.data);
+            })
+            .catch((error) => {
+                console.error("There was an error fetching the department courses!", error);
+            });
+    }, []); // Empty dependency array ensures this runs once when the component mounts
+
     return (
         <div>
             <div className="text-center z-0">
@@ -21,7 +27,6 @@ export default function DepCourseInfo() {
                             <tr>
                                 <th scope="col" className="px-6 py-3">Department Name</th>
                                 <th scope="col" className="px-6 py-3">Total Courses</th>
-                                <th scope="col" className="px-6 py-3">Total Credits</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -32,14 +37,13 @@ export default function DepCourseInfo() {
                                 >
                                     <Link
                                         to={`/DepartCourses`}
-                                        state={{ department }}
+                                        state={{ departmentId: department.id }} // Pass departmentId here
                                         className="contents" // Ensures the link styles don't affect the table row
                                     >
                                         <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
                                             {department.name}
                                         </th>
                                         <td className="px-6 py-4">{department.totalCourses}</td>
-                                        <td className="px-6 py-4">{department.totalCredits}</td>
                                     </Link>
                                 </tr>
                             ))}

@@ -1,10 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import HeadBan from "./HeadBan";
 import AddCourse from './Addcourses';
 import ListCourses from './ListofCourses';
 
 export default function DepartCourses() {
     const [isOpen, setIsOpen] = useState(false);
+    const location = useLocation();
+    const { departmentId } = location.state || {};
+
+    useEffect(() => {
+        if (departmentId) {
+            console.log("Department ID received:", departmentId);
+        }
+    }, [departmentId]);
 
     return (
         <div>
@@ -16,11 +25,6 @@ export default function DepartCourses() {
                     <form className="flex-grow relative">
                         <label htmlFor="default-search" className="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white">Search</label>
                         <div className="relative">
-                            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                                    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
-                                </svg>
-                            </div>
                             <input 
                                 type="search" 
                                 id="default-search" 
@@ -38,12 +42,12 @@ export default function DepartCourses() {
                         ADD
                     </button>
                 </div>
-                <AddCourse open={isOpen} onClose={() => setIsOpen(false)} />
+                <AddCourse open={isOpen} onClose={() => setIsOpen(false)} departmentId={departmentId} />
                 <div>
                     <div className="w-[95%] py-7 mx-auto">
                         <hr />
                     </div>
-                    <ListCourses/>
+                    <ListCourses departmentId={departmentId} />
                 </div>
             </div>
         </div>

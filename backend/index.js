@@ -378,6 +378,170 @@ app.delete('/api/departments/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Get courses by department endpoint
+app.get('/api/courses', authenticateToken, async (req, res) => {
+  const { collegeId } = req.user;
+
+  try {
+    const query = `
+      SELECT 
+        d.Department_id AS id, 
+        d.Departmentname AS name, 
+        COUNT(c.Course_id) AS totalCourses
+      FROM 
+        department d
+      LEFT JOIN 
+        course c ON d.Department_id = c.Department_id
+      WHERE 
+        d.College_id = ?
+      GROUP BY 
+        d.Department_id;
+    `;
+    
+    const [results] = await db.execute(query, [collegeId]);
+    res.json(results);
+  } catch (error) {
+    console.error("Error fetching courses:", error);
+    res.status(500).json({ message: 'Failed to fetch courses.' });
+  }
+});
+
+// Get courses for a specific department
+app.get('/api/departments/:id/courses', authenticateToken, async (req, res) => {
+  const { id } = req.params; // Get the department ID from the request parameters
+
+  try {
+      const query = `
+          SELECT 
+              c.Course_id AS id,
+              c.Coursecode AS code,
+              c.Coursename AS name,
+              c.Credit AS credit,
+              s.Semestername AS semester
+          FROM 
+              course c
+          JOIN 
+              semesters s ON c.Semester_id = s.Semester_id
+          WHERE 
+              c.Department_id = ?;
+      `;
+
+      const [results] = await db.execute(query, [id]);
+
+      if (results.length === 0) {
+          return res.status(404).json({ message: 'No courses found for this department.' });
+      }
+
+      res.json(results);
+  } catch (error) {
+      console.error("Error fetching courses:", error);
+      res.status(500).json({ message: 'Failed to fetch courses.' });
+  }
+});
+
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    const courseData = {
+        courseCode,
+        courseName,
+        credits,
+        semesterId, // Ensure this is set correctly from your form
+        departmentId, // Ensure this is set correctly from your form
+        prerequisites: hasPrerequisite ? selectedPrerequisites : [],
+    };
+
+    try {
+        const response = await fetch('http://localhost:5000/api/courses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`, // Include the JWT token for authentication
+            },
+            body: JSON.stringify(courseData),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to add course');
+        }
+
+        const result = await response.json();
+        console.log(result);
+        onClose(); // Close the modal after submission
+    } catch (error) {
+        console.error('Error:', error);
+    }
+};
+
+// Add Course endpoint
+app.post('/api/courses', authenticateToken, async (req, res) => {
+  const { courseCode, courseName, credits, semesterId, departmentId, prerequisites } = req.body;
+
+  // Validation
+  if (!courseCode || !courseName || !credits || !semesterId || !departmentId) {
+    return res.status(400).json({ message: 'Course code, name, credits, semester ID, and department ID are required.' });
+  }
+
+  try {
+    // Insert course into the database
+    const [courseResult] = await db.query(
+      'INSERT INTO course (Coursecode, Coursename, Credit, Semester_id, Department_id) VALUES (?, ?, ?, ?, ?)',
+      [courseCode, courseName, credits, semesterId, departmentId]
+    );
+
+    const courseId = courseResult.insertId;
+
+    // If prerequisites are provided, insert them into prerequisite_course table
+    if (prerequisites && prerequisites.length > 0) {
+      const prerequisitePromises = prerequisites.map(prerequisiteId => {
+        return db.query(
+          'INSERT INTO prerequisite_course (Course_id, Prerequisite_courses_id) VALUES (?, ?)',
+          [courseId, prerequisiteId]
+        );
+      });
+
+      await Promise.all(prerequisitePromises);
+    }
+
+    res.status(201).json({
+      message: 'Course added successfully.',
+      courseId,
+    });
+  } catch (error) {
+    console.error('Error adding course:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Get semesters for a specific department
+app.get('/api/departments/:id/semesters', authenticateToken, async (req, res) => {
+  const { id } = req.params; // Get the department ID from the request parameters
+
+  try {
+    const query = `
+      SELECT 
+        s.Semester_id AS id,
+        s.Semestername AS name,
+        s.Years AS year,
+        s.Max_ects AS maxEcts
+      FROM 
+        semesters s
+      WHERE 
+        s.Department_id = ?;
+    `;
+
+    const [results] = await db.execute(query, [id]);
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'No semesters found for this department.' });
+    }
+
+    res.json(results); // Return the semesters for the department
+  } catch (error) {
+    console.error("Error fetching semesters:", error);
+    res.status(500).json({ message: 'Failed to fetch semesters.' });
+  }
+});
+
 
 // Catch-all for undefined routes
 app.use((req, res) => {

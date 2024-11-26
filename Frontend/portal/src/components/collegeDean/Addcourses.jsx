@@ -1,5 +1,6 @@
+import React, { useState, useEffect } from 'react';
 import ReactDom from 'react-dom';
-import { useState } from 'react';
+import axios from 'axios';
 
 const MODAL_STYLES = {
     position: 'fixed',
@@ -25,28 +26,53 @@ const OVERLAY_STYLES = {
     zIndex: 1000,
 };
 
-const coursesList = [
-    "Course A",
-    "Course B",
-    "Course C",
-    "Course D",
-    "Course E",
-    "Course F",
-    "Course G",
-    "Course H",
-    "Course I",
-    "Course J",
-    "Course K",
-    "Course L",
-];
-
-export default function AddCourse({ open, onClose }) {
+export default function AddCourse({ open, onClose, departmentId }) {
     const [courseName, setCourseName] = useState('');
     const [courseCode, setCourseCode] = useState('');
     const [semester, setSemester] = useState('');
     const [credits, setCredits] = useState('');
     const [hasPrerequisite, setHasPrerequisite] = useState(false);
     const [selectedPrerequisites, setSelectedPrerequisites] = useState([]);
+    const [semesters, setSemesters] = useState([]);
+    const [prerequisites, setPrerequisites] = useState([]);
+
+    useEffect(() => {
+        if (departmentId) {
+            fetchSemesters();
+            fetchCourses();
+        }
+    }, [departmentId]);
+
+    const token = localStorage.getItem('token'); // assuming token is stored in localStorage
+
+
+    const fetchSemesters = async () => {
+        try {
+            const response = await axios.get(`http://localhost:5000/api/departments/${departmentId}/semesters`, {
+                headers: {
+                    Authorization: `Bearer ${token}`, // Attach the token in the Authorization header
+
+                },
+            });
+            setSemesters(response.data);
+        } catch (error) {
+            console.error('Error fetching semesters:', error);
+        }
+    };
+
+    const fetchCourses = async () => {
+        try {
+            const response = await axios.get(`http://localhost:5000/api/departments/${departmentId}/courses`, {
+                headers: {
+                    Authorization: `Bearer ${token}`, // Attach the token in the Authorization header
+
+                },
+            });
+            setPrerequisites(response.data);
+        } catch (error) {
+            console.error('Error fetching courses:', error);
+        }
+    };
 
     const handlePrerequisiteChange = (e) => {
         const options = e.target.options;
@@ -59,22 +85,30 @@ export default function AddCourse({ open, onClose }) {
         setSelectedPrerequisites(values);
     };
 
-    const removePrerequisite = (course) => {
-        setSelectedPrerequisites(selectedPrerequisites.filter(item => item !== course));
-    };
-
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const courseData = {
-            courseName,
             courseCode,
-            semester,
+            courseName,
             credits,
+            semesterId: semester,
+            departmentId,
             prerequisites: hasPrerequisite ? selectedPrerequisites : [],
         };
 
-        console.log(courseData);
-        onClose(); // Close the modal after submission
+        try {
+            const response = await axios.post('http://localhost:5000/api/courses', courseData, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`, // Attach the token in the Authorization header
+                    
+                },
+            });
+            console.log('Course added successfully:', response.data);
+            onClose();
+        } catch (error) {
+            console.error('Error adding course:', error);
+        }
     };
 
     if (!open) return null;
@@ -155,14 +189,9 @@ export default function AddCourse({ open, onClose }) {
                                     required
                                 >
                                     <option value="" disabled>Select Semester</option>
-                                    <option value="1 Year 1st Sem">1 Year 1st Sem</option>
-                                    <option value="1 Year 2nd Sem">1 Year 2nd Sem</option>
-                                    <option value="2 Year 1st Sem">2 Year 1st Sem</option>
-                                    <option value="2 Year 2nd Sem">2 Year 2nd Sem</option>
-                                    <option value="3 Year 1st Sem">3 Year 1st Sem</option>
-                                    <option value="3 Year 2nd Sem">3 Year 2nd Sem</option>
-                                    <option value="4 Year 1st Sem">4 Year 1st Sem</option>
-                                    <option value="4 Year 2nd Sem">4 Year 2nd Sem</option>
+                                    {semesters.map((sem) => (
+                                        <option key={sem.id} value={sem.id}>{sem.year} year-{sem.name}</option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
@@ -180,38 +209,19 @@ export default function AddCourse({ open, onClose }) {
                         {hasPrerequisite && (
                             <div className="flex flex-col">
                                 <label htmlFor="prerequisites" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Prerequisite Courses</label>
-                                <div className="flex">
-                                    <select 
-                                        id="prerequisites" 
-                                        multiple 
-                                        value={selectedPrerequisites} 
-                                        onChange={handlePrerequisiteChange}
-                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500 h-32 overflow-y-auto mr-2"
-                                    >
-                                        {coursesList.map((course) => (
-                                            <option key={course} value={course}>
-                                                {course}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <div className="flex flex-col justify-start ml-2">
-                                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Selected:</h4>
-                                        <div className="flex flex-wrap">
-                                            {selectedPrerequisites.map((course) => (
-                                                <div key={course} className="flex items-center bg-gray-200 rounded px-2 py-1 mr-2 mb-2">
-                                                    {course}
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => removePrerequisite(course)} 
-                                                        className="ml-2 text-red-500 hover:text-red-700"
-                                                    >
-                                                        &times;
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
+                                <select 
+                                    id="prerequisites" 
+                                    multiple 
+                                    value={selectedPrerequisites} 
+                                    onChange={handlePrerequisiteChange}
+                                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500 h-32 overflow-y-auto mr-2"
+                                >
+                                    {prerequisites.map((course) => (
+                                        <option key={course.id} value={course.id}>
+                                            {course.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         )}
                     </div>
@@ -219,9 +229,6 @@ export default function AddCourse({ open, onClose }) {
                         type="submit" 
                         className="text-white inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                     >
-                        <svg className="me-1 -ms-1 w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd"></path>
-                        </svg>
                         Add New Course
                     </button>
                 </form>
