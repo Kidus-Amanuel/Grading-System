@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import axios from 'axios';
 
 const MODAL_STYLES = {
     position: 'fixed',
@@ -25,38 +26,54 @@ const OVERLAY_STYLES = {
     zIndex: 1000,
 };
 
-const coursesList = [
-    "Course A",
-    "Course B",
-    "Course C",
-    "Course D",
-    "Course E",
-    "Course F",
-    "Course G",
-    "Course H",
-    "Course I",
-    "Course J",
-    "Course K",
-    "Course L",
-];
-
-export default function EditCourse({ open, onClose, course }) {
+export default function EditCourse({ open, onClose, course, departmentId }) {
     const [courseName, setCourseName] = useState('');
     const [courseCode, setCourseCode] = useState('');
     const [semester, setSemester] = useState('');
     const [credits, setCredits] = useState('');
     const [hasPrerequisite, setHasPrerequisite] = useState(false);
     const [selectedPrerequisites, setSelectedPrerequisites] = useState([]);
+    const [semesters, setSemesters] = useState([]);
+    const [prerequisites, setPrerequisites] = useState([]);
 
     useEffect(() => {
         if (course) {
             setCourseName(course.name);
             setCourseCode(course.code);
-            setSemester(course.semester);
+            setSemester(course.semesterId);
             setCredits(course.credits);
             setSelectedPrerequisites(course.prerequisites || []);
+            setHasPrerequisite(course.prerequisites && course.prerequisites.length > 0);
+            fetchSemesters(departmentId);
+            fetchCourses(departmentId);
         }
-    }, [course]);
+    }, [course, departmentId]);
+
+    const fetchSemesters = async (departmentId) => {
+        try {
+            const response = await axios.get(`http://localhost:5000/api/departments/${departmentId}/semesters`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                },
+            });
+            setSemesters(response.data);
+        } catch (error) {
+            console.error('Error fetching semesters:', error);
+        }
+    };
+
+    const fetchCourses = async (departmentId) => {
+        try {
+            const response = await axios.get(`http://localhost:5000/api/departments/${departmentId}/courses`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                },
+            });
+            setPrerequisites(response.data);
+        } catch (error) {
+            console.error('Error fetching courses:', error);
+        }
+    };
 
     const handlePrerequisiteChange = (e) => {
         const options = e.target.options;
@@ -69,22 +86,40 @@ export default function EditCourse({ open, onClose, course }) {
         setSelectedPrerequisites(values);
     };
 
-    const removePrerequisite = (course) => {
-        setSelectedPrerequisites(selectedPrerequisites.filter(item => item !== course));
+    const removePrerequisite = (courseId) => {
+        setSelectedPrerequisites(selectedPrerequisites.filter(item => item !== courseId));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const courseData = {
-            courseName,
-            courseCode,
-            semester,
-            credits,
-            prerequisites: hasPrerequisite ? selectedPrerequisites : [],
+            courseCode: courseCode,
+            courseName: courseName,
+            credits: parseInt(credits, 10),
+            semesterId: semester,
+            departmentId: departmentId,
+            prerequisites: hasPrerequisite ? selectedPrerequisites.map(id => parseInt(id, 10)) : [],
         };
+        console.log("Data being sent to the API:", courseData);
 
-        console.log(courseData);
-        onClose(); // Close the modal after submission
+        try {
+            const response = await axios.put(`http://localhost:5000/api/course/${course.id}`, courseData, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                },
+            });
+
+            if (response.status === 200) {
+                alert('Course updated successfully!');
+                onClose(); // Close the modal after submission
+            } else {
+                alert('Failed to update course.');
+            }
+        } catch (error) {
+            console.error('Error updating course:', error);
+            alert('Error updating course. Please try again.');
+        }
     };
 
     if (!open) return null;
@@ -94,9 +129,7 @@ export default function EditCourse({ open, onClose, course }) {
             <div style={OVERLAY_STYLES}></div>
             <div style={MODAL_STYLES}>
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        Edit Course
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Course</h3>
                     <button 
                         onClick={onClose}
                         type="button"
@@ -165,14 +198,9 @@ export default function EditCourse({ open, onClose, course }) {
                                     required
                                 >
                                     <option value="" disabled>Select Semester</option>
-                                    <option value="1 Year 1st Sem">1 Year 1st Sem</option>
-                                    <option value="1 Year 2nd Sem">1 Year 2nd Sem</option>
-                                    <option value="2 Year 1st Sem">2 Year 1st Sem</option>
-                                    <option value="2 Year 2nd Sem">2 Year 2nd Sem</option>
-                                    <option value="3 Year 1st Sem">3 Year 1st Sem</option>
-                                    <option value="3 Year 2nd Sem">3 Year 2nd Sem</option>
-                                    <option value="4 Year 1st Sem">4 Year 1st Sem</option>
-                                    <option value="4 Year 2nd Sem">4 Year 2nd Sem</option>
+                                    {semesters.map((sem) => (
+                                        <option key={sem.id} value={sem.id}>{sem.name}</option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
@@ -182,11 +210,17 @@ export default function EditCourse({ open, onClose, course }) {
                                 type="checkbox" 
                                 id="hasPrerequisite" 
                                 checked={hasPrerequisite} 
-                                onChange={(e) => setHasPrerequisite(e.target.checked)} 
+                                onChange={(e) => {
+                                    setHasPrerequisite(e.target.checked);
+                                    if (!e.target.checked) {
+                                        setSelectedPrerequisites([]); // Clear selected if unchecked
+                                    }
+                                }} 
                                 className="mr-2"
                             />
                             <label htmlFor="hasPrerequisite" className="text-sm font-medium text-gray-900 dark:text-white">This course has prerequisites</label>
                         </div>
+                        
                         {hasPrerequisite && (
                             <div className="flex flex-col">
                                 <label htmlFor="prerequisites" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Prerequisite Courses</label>
@@ -198,27 +232,30 @@ export default function EditCourse({ open, onClose, course }) {
                                         onChange={handlePrerequisiteChange}
                                         className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500 h-32 overflow-y-auto mr-2"
                                     >
-                                        {coursesList.map((course) => (
-                                            <option key={course} value={course}>
-                                                {course}
+                                        {prerequisites.map((course) => (
+                                            <option key={course.id} value={course.id}>
+                                                {course.name}
                                             </option>
                                         ))}
                                     </select>
                                     <div className="flex flex-col justify-start ml-2">
                                         <h4 className="text-sm font-medium text-gray-900 dark:text-white">Selected:</h4>
                                         <div className="flex flex-wrap">
-                                            {selectedPrerequisites.map((course) => (
-                                                <div key={course} className="flex items-center bg-gray-200 rounded px-2 py-1 mr-2 mb-2">
-                                                    {course}
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => removePrerequisite(course)} 
-                                                        className="ml-2 text-red-500 hover:text-red-700"
-                                                    >
-                                                        &times;
-                                                    </button>
-                                                </div>
-                                            ))}
+                                            {selectedPrerequisites.map((courseId) => {
+                                                const selectedCourse = prerequisites.find(course => course.id === courseId);
+                                                return (
+                                                    <div key={courseId} className="flex items-center bg-gray-200 rounded px-2 py-1 mr-2 mb-2">
+                                                        {selectedCourse ? selectedCourse.name : courseId} {/* Show course name */}
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => removePrerequisite(courseId)} 
+                                                            className="ml-2 text-red-500 hover:text-red-700"
+                                                        >
+                                                            &times;
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>

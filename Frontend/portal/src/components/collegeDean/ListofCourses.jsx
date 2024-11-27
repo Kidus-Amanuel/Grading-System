@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'; // Ensure axios is imported
-import EditCourse from './EditCourses'; // Ensure this path is correct
-import DeleteModal from './Deletepage'; // Ensure this path is correct
+import axios from 'axios';
+import EditCourse from './EditCourses';
+import DeleteModal from './Deletepage';
 
 export default function ListCourses({ departmentId }) {
     const [courses, setCourses] = useState([]);
@@ -9,8 +9,8 @@ export default function ListCourses({ departmentId }) {
     const [selectedCourse, setSelectedCourse] = useState(null);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [courseToDelete, setCourseToDelete] = useState(null);
-    const [loading, setLoading] = useState(true); // State to handle loading
-    const [error, setError] = useState(null); // State to handle errors
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -52,17 +52,26 @@ export default function ListCourses({ departmentId }) {
         setCourseToDelete(null);
     };
 
-    const handleDelete = () => {
-        setCourses((prevCourses) => prevCourses.filter((course) => course !== courseToDelete));
-        closeDeleteModal();
+    const handleDelete = async () => {
+        try {
+            await axios.delete(`http://localhost:5000/api/course/${courseToDelete.id}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+
+            setCourses((prevCourses) => prevCourses.filter((course) => course.id !== courseToDelete.id));
+            closeDeleteModal();
+        } catch (error) {
+            console.error("Error deleting course:", error);
+            // Optionally show an error message to the user
+        }
     };
 
     if (loading) {
-        return <div className="text-center">Loading...</div>; // Loading state
+        return <div className="text-center">Loading...</div>;
     }
 
     if (error) {
-        return <div className="text-center text-red-500">{error}</div>; // Error state
+        return <div className="text-center text-red-500">{error}</div>;
     }
 
     return (
@@ -111,6 +120,7 @@ export default function ListCourses({ departmentId }) {
                     open={isEditOpen}
                     onClose={closeEditModal}
                     course={selectedCourse}
+                    departmentId={departmentId}
                 />
             )}
             {isDeleteOpen && courseToDelete && (
@@ -121,5 +131,5 @@ export default function ListCourses({ departmentId }) {
                 />
             )}
         </div>
-    );
+    ); 
 }

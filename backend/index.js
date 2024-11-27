@@ -82,9 +82,9 @@ app.post('/api/login', async (req, res) => {
     // Map role ID to frontend routes
     const roleRoutes = {
       1: '/Dashboard', // College Dean
-      2: '/StudentCourses', // Student
-      3: '/DepartmentStudents', // Department Head
-      4: '/InstructorCourses', // Instructor
+      4: '/StudentCourses', // Student
+      2: '/DepartmentStudents', // Department Head
+      3: '/InstructorCourses', // Instructor
     };
 
     // Return token and user details
@@ -439,38 +439,6 @@ app.get('/api/departments/:id/courses', authenticateToken, async (req, res) => {
   }
 });
 
-const handleSubmit = async (e) => {
-    e.preventDefault();
-    const courseData = {
-        courseCode,
-        courseName,
-        credits,
-        semesterId, // Ensure this is set correctly from your form
-        departmentId, // Ensure this is set correctly from your form
-        prerequisites: hasPrerequisite ? selectedPrerequisites : [],
-    };
-
-    try {
-        const response = await fetch('http://localhost:5000/api/courses', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`, // Include the JWT token for authentication
-            },
-            body: JSON.stringify(courseData),
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to add course');
-        }
-
-        const result = await response.json();
-        console.log(result);
-        onClose(); // Close the modal after submission
-    } catch (error) {
-        console.error('Error:', error);
-    }
-};
 
 // Add Course endpoint
 app.post('/api/courses', authenticateToken, async (req, res) => {
@@ -542,6 +510,147 @@ app.get('/api/departments/:id/semesters', authenticateToken, async (req, res) =>
   }
 });
 
+
+// Get Course Details endpoint
+app.get('/api/course/:id', authenticateToken, async (req, res) => {
+  const courseId = req.params.id; // Get course ID from the request parameters
+
+  try {
+      // Fetch course details
+      const [courses] = await db.query(
+          'SELECT c.Course_id, c.Coursecode, c.Coursename, c.Credit, c.Semester_id, c.Department_id ' +
+          'FROM course c WHERE c.Course_id = ?',
+          [courseId]
+      );
+
+      // Check if the course exists
+      if (courses.length === 0) {
+          return res.status(404).json({ message: 'Course not found.' });
+      }
+
+      const course = courses[0]; // Get the first (and should be only) result
+
+      // Fetch prerequisite courses
+      const [prerequisites] = await db.query(
+          'SELECT pc.Prerequisite_courses_id, c.Coursename ' +
+          'FROM prerequisite_course pc ' +
+          'JOIN course c ON pc.Prerequisite_courses_id = c.Course_id ' +
+          'WHERE pc.Course_id = ?',
+          [courseId]
+      );
+
+      // Format the response
+      const response = {
+          course: {
+              id: course.Course_id,
+              code: course.Coursecode,
+              name: course.Coursename,
+              credits: course.Credit,
+              semesterId: course.Semester_id,
+              departmentId: course.Department_id,
+          },
+          prerequisites: prerequisites.map(prerequisite => ({
+              id: prerequisite.Prerequisite_courses_id,
+              name: prerequisite.Coursename,
+          })),
+      };
+
+      res.status(200).json(response);
+  } catch (error) {
+      console.error('Error fetching course details:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+// Edit Course endpoint
+app.put('/api/course/:id', authenticateToken, async (req, res) => {
+  const courseId = req.params.id; // Get course ID from the request parameters
+  const { courseCode, courseName, credits, semesterId, departmentId, prerequisites } = req.body;
+
+  // Debugging logs
+  console.log("Received PUT request to update course");
+  console.log("Course ID:", courseId);
+  console.log("Request Body:", req.body);
+
+  // Validation
+  if (!courseCode || !courseName || credits === undefined || !semesterId || !departmentId) {
+      console.log("Validation failed. Missing required fields.");
+      return res.status(400).json({ message: 'Course code, name, credits, semester ID, and department ID are required.' });
+  }
+
+  try {
+      // Update the course in the database
+      const [result] = await db.query(
+          'UPDATE course SET Coursecode = ?, Coursename = ?, Credit = ?, Semester_id = ?, Department_id = ? WHERE Course_id = ?',
+          [courseCode, courseName, credits, semesterId, departmentId, courseId]
+      );
+
+      // Debugging log for update result
+      console.log("Database update result:", result);
+
+      // Check if the course was updated
+      if (result.affectedRows === 0) {
+          console.log("Course not found or no changes made.");
+          return res.status(404).json({ message: 'Course not found.' });
+      }
+
+      // Remove existing prerequisites for the course
+      await db.query('DELETE FROM prerequisite_course WHERE Course_id = ?', [courseId]);
+      console.log("Existing prerequisites deleted for Course ID:", courseId);
+
+      // If prerequisites are provided, insert them into prerequisite_course table
+      if (prerequisites && prerequisites.length > 0) {
+          console.log("Inserting prerequisites:", prerequisites);
+          const prerequisitePromises = prerequisites.map(prerequisiteId => {
+              return db.query(
+                  'INSERT INTO prerequisite_course (Course_id, Prerequisite_courses_id) VALUES (?, ?)',
+                  [courseId, prerequisiteId]
+              );
+          });
+
+          await Promise.all(prerequisitePromises);
+          console.log("Prerequisites inserted successfully.");
+      } else {
+          console.log("No prerequisites provided.");
+      }
+
+      res.status(200).json({
+          message: 'Course updated successfully.',
+          courseId,
+      });
+  } catch (error) {
+      console.error('Error updating course:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Delete Course endpoint
+app.delete('/api/course/:id', authenticateToken, async (req, res) => {
+  const courseId = req.params.id; // Get course ID from the request parameters
+
+  try {
+      // Check if the course exists
+      const [course] = await db.query('SELECT * FROM course WHERE Course_id = ?', [courseId]);
+      if (course.length === 0) {
+          return res.status(404).json({ message: 'Course not found.' });
+      }
+
+      // Delete prerequisites associated with the course
+      await db.query('DELETE FROM prerequisite_course WHERE Course_id = ?', [courseId]);
+
+      // Delete the course
+      const [result] = await db.query('DELETE FROM course WHERE Course_id = ?', [courseId]);
+
+      // Check if the deletion was successful
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: 'Course not found or already deleted.' });
+      }
+
+      res.status(200).json({ message: 'Course deleted successfully.' });
+  } catch (error) {
+      console.error('Error deleting course:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 
 // Catch-all for undefined routes
 app.use((req, res) => {
