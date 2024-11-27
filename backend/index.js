@@ -54,7 +54,7 @@ app.post('/api/login', async (req, res) => {
 
   try {
     const [users] = await db.query(
-      'SELECT Userid, University_id, FullName, Passwords, Role_id, College_id FROM user WHERE University_id = ?',
+      'SELECT Userid, University_id, FullName, Passwords, Role_id, College_id ,Department_id FROM user WHERE University_id = ?',
       [UniversityID]
     );
 
@@ -74,6 +74,7 @@ app.post('/api/login', async (req, res) => {
         id: user.Userid,
         collegeId: user.College_id,
         role: user.Role_id,
+        DepartmentId: user.Department_id,
       },
       process.env.JWT_SECRET || 'your_jwt_secret', // Use a secure environment variable
       { expiresIn: '1d' } // Token expires in 1 day
@@ -96,6 +97,7 @@ app.post('/api/login', async (req, res) => {
         name: user.FullName,
         role: user.Role_id,
         collegeId: user.College_id,
+        DepartmentId: user.Department_id,
       },
       route: roleRoutes[user.Role_id] || '/Dashboard', // Default route if no role found
     });
@@ -648,6 +650,161 @@ app.delete('/api/course/:id', authenticateToken, async (req, res) => {
       res.status(200).json({ message: 'Course deleted successfully.' });
   } catch (error) {
       console.error('Error deleting course:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Get Students by Department endpoint
+app.get('/api/students', authenticateToken, async (req, res) => {
+  const { DepartmentId } = req.user; // Extracting DepartmentId from the token
+
+  // Log incoming request details
+  console.log('Received request to get students for department ID:', DepartmentId);
+
+  try {
+      // Query to get students from the specified department, including names and batch years
+      const [students] = await db.query(`
+          SELECT 
+              s.Student_id,
+              u.FullName AS studentName,
+              b.Batchyear AS batchYear,
+              s.Enrollment_status,
+              s.Created_at,
+              s.Updated_at
+          FROM 
+              student s
+          JOIN 
+              user u ON s.Student_Uni_id = u.University_id
+          JOIN 
+              batche b ON s.Batch_id = b.Batch_id
+          WHERE 
+              s.Department_id = ?
+      `, [DepartmentId]);
+
+      // Check if students were found
+      if (students.length === 0) {
+          return res.status(404).json({ message: 'No students found for this department.' });
+      }
+
+      // Send success response with students data
+      res.status(200).json(students);
+  } catch (error) {
+      console.error('Error retrieving students:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.get('/api/depcourses', authenticateToken, async (req, res) => {
+  const { DepartmentId } = req.user; // Extracting departmentId from the token
+
+  // Log incoming request details
+  console.log('Received request to get courses for department ID:', DepartmentId);
+
+  try {
+      // Query to get courses from the specified department, including course details
+      const [courses] = await db.query(`
+          SELECT 
+              c.Course_id AS id,
+              c.Coursecode AS code,
+              c.Coursename AS name,
+              c.Credit AS credit,
+              s.Semestername AS semester
+          FROM 
+              course c
+          JOIN 
+              semesters s ON c.Semester_id = s.Semester_id
+          WHERE 
+              c.Department_id = ?
+      `, [DepartmentId]);
+
+      // Log the query results for debugging
+      console.log('Courses found:', courses);
+
+      // Check if courses were found
+      if (courses.length === 0) {
+          return res.status(404).json({ message: 'No courses found for this department.' });
+      }
+
+      // Send success response with courses data
+      res.status(200).json(courses);
+  } catch (error) {
+      console.error('Error retrieving courses:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// assign course
+
+app.post('/api/assign-course', authenticateToken, async (req, res) => {
+  const { courseId, instructorUniId, semesterId } = req.body;
+
+  console.log('Assigning course request:', { courseId, instructorUniId, semesterId });
+
+  // Validate input
+  if (!courseId || !instructorUniId || !semesterId) {
+      return res.status(400).json({ message: 'Course ID, Instructor ID, and Semester ID are required.' });
+  }
+
+  try {
+      // Check if course exists
+      const courseExists = await db.query(`
+          SELECT * FROM course WHERE Course_id = ? AND Semester_id = ?
+      `, [courseId, semesterId]);
+      
+      if (courseExists.length === 0) {
+          return res.status(404).json({ message: 'Course not found for the given semester.' });
+      }
+
+      // Check if the instructor exists and is approved
+      const instructorExists = await db.query(`
+          SELECT * FROM user WHERE University_id = ? AND Role_id = 
+          (SELECT Role_id FROM roles WHERE Role_name = 'Instructor') AND Approve_status = 'Approved'
+      `, [instructorUniId]);
+      
+      if (instructorExists.length === 0) {
+          return res.status(404).json({ message: 'Instructor not found or not approved.' });
+      }
+
+      // Check if the assignment already exists
+      const existingAssignment = await db.query(`
+          SELECT * FROM assignment_course 
+          WHERE Course_id = ? AND Semester_id = ?
+      `, [courseId, semesterId]);
+
+      if (existingAssignment.length > 0) {
+          // Check if the assignment needs an update
+          const currentInstructor = existingAssignment[0].Instructor_Uni_id;
+          if (currentInstructor === instructorUniId) {
+              return res.status(200).json({ message: 'Instructor assignment is already up-to-date.' });
+          }
+
+          // Update existing assignment
+          const updateResult = await db.query(`
+              UPDATE assignment_course
+              SET Instructor_Uni_id = ?
+              WHERE Course_id = ? AND Semester_id = ?
+          `, [instructorUniId, courseId, semesterId]);
+
+          if (updateResult.affectedRows > 0) {
+              return res.status(200).json({ message: 'Instructor assignment updated successfully.' });
+          } else {
+              return res.status(500).json({ message: 'Failed to update instructor assignment.' });
+          }
+      } else {
+          // Insert new assignment
+          const insertResult = await db.query(`
+              INSERT INTO assignment_course (Course_id, Instructor_Uni_id, Semester_id)
+              VALUES (?, ?, ?)
+          `, [courseId, instructorUniId, semesterId]);
+
+          if (insertResult.affectedRows > 0) {
+              return res.status(201).json({ message: 'Instructor assigned successfully.' });
+          } else {
+              return res.status(500).json({ message: 'Failed to assign instructor.' });
+          }
+      }
+  } catch (error) {
+      console.error('Error during course assignment:', error);
       res.status(500).json({ message: 'Internal server error.' });
   }
 });

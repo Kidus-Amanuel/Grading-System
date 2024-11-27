@@ -62,14 +62,7 @@ export default function DepartmentCourses() {
                     <hr />
                 </div>
                 <div>
-                    <h2 className="text-lg font-semibold mb-2">Year 1 Semester I</h2>
                     <ListDepCourses semester="Year 1 Semester I" />
-                    <h2 className="text-lg font-semibold mt-8 mb-2">Year 1 Semester II</h2>
-                    <ListDepCourses semester="Year 1 Semester II" />
-                    <h2 className="text-lg font-semibold mt-8 mb-2">Year 2 Semester I</h2>
-                    <ListDepCourses semester="Year 2 Semester I" />
-                    <h2 className="text-lg font-semibold mt-8 mb-2">Year 2 Semester II</h2>
-                    <ListDepCourses semester="Year 2 Semester II" />
                 </div>
             </div>
         </div>

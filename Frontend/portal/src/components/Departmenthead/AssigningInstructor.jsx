@@ -108,49 +108,7 @@ export default function AssigningInstructor({ open, onClose, course }) {
                             <option value="instructor3">Instructor 3</option>
                         </select>
 
-                        <h4 className="mt-4 mb-2 font-semibold">Add Assessment Component</h4>
-                        <label htmlFor="component-name" className="block mb-1 text-sm font-medium text-gray-700">Component Name</label>
-                        <input 
-                            type="text" 
-                            id="component-name" 
-                            value={componentName}
-                            onChange={(e) => setComponentName(e.target.value)}
-                            className="block w-full p-2 border border-gray-300 rounded mb-2"
-                            placeholder="e.g., Assignment, Midterm"
-                        />
-
-                        <label htmlFor="weight" className="block mb-1 text-sm font-medium text-gray-700">Weight (%)</label>
-                        <input 
-                            type="number" 
-                            id="weight" 
-                            value={weight}
-                            onChange={(e) => setWeight(e.target.value)}
-                            className="block w-full p-2 border border-gray-300 rounded mb-2"
-                            placeholder="e.g., 20, 30"
-                            min="0"
-                            max="100"
-                        />
-
-                        <div className="mt-4">
-                            <button 
-                                type="button" 
-                                className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
-                                onClick={handleAddAssessment}
-                            >
-                                Add Assessment
-                            </button>
-                        </div>
-
-                        {/* Displaying the added assessment components */}
-                        <h4 className="mt-6 mb-2 font-semibold">Added Assessments</h4>
-                        <ul className="list-disc pl-5">
-                            {assessments.map((assessment, index) => (
-                                <li key={index} className="text-gray-700">
-                                    {assessment.componentName} - {assessment.weight}%
-                                </li>
-                            ))}
-                        </ul>
-
+                        
                         {/* Submit All Button */}
                         <div className="mt-4">
                             <button 
