@@ -1,38 +1,65 @@
-import React, { useState } from 'react';
-import ReactDOM from 'react-dom';
-import AddCourseModal from './AddCourseModal';  // Assuming this is the modal to add courses
-import DropCourseModal from './DropCourseModal'; // The new modal you want to use for dropping courses
+import React, { useState, useEffect } from 'react';
+import AddCourseModal from './AddCourseModal';
+import DropCourseModal from './DropCourseModal';
+import axios from 'axios';
 
 export default function CourseForEnroll() {
-  const [courses, setCourses] = useState([
-    { name: 'Introduction to Psychology', code: 'PSY101', credits: 3 },
-    { name: 'Calculus I', code: 'MATH101', credits: 4 },
-    { name: 'Modern Literature', code: 'ENG201', credits: 3 },
-    { name: 'Organic Chemistry', code: 'CHEM301', credits: 4 },
-    { name: 'Data Structures', code: 'CS202', credits: 3 },
-  ]);
-
+  const [courses, setCourses] = useState([]);
   const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
   const [isDropCourseModalOpen, setIsDropCourseModalOpen] = useState(false);
   const [courseToDrop, setCourseToDrop] = useState(null);
 
-  const handleAddCourse = (newCourse) => {
-    setCourses((prevCourses) => [...prevCourses, newCourse]);
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/Semestercourses', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        setCourses(response.data);
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
+  const handleAddCourse = (newCourses) => {
+    // Map the properties from the newCourses to the expected format
+    const mappedCourses = newCourses.map(course => ({
+      Course_id: course.id,         // Map id to Course_id
+      Coursecode: course.code,      // Map code to Coursecode
+      Coursename: course.name,      // Map name to Coursename
+      Credit: course.credit,        // Map credit to Credit
+    }));
+
+    setCourses((prevCourses) => [...prevCourses, ...mappedCourses]); // Add mapped courses
   };
 
   const handleDropCourse = (course) => {
-    setCourses((prevCourses) => prevCourses.filter((c) => c.name !== course.name));
-    setIsDropCourseModalOpen(false);  // Close the drop modal after confirmation
+    setCourses((prevCourses) => prevCourses.filter((c) => c.Course_id !== course.Course_id));
+    setIsDropCourseModalOpen(false);
   };
 
   const handleDropClick = (course) => {
     setCourseToDrop(course);
-    setIsDropCourseModalOpen(true);  // Open the drop modal when a course is clicked
+    setIsDropCourseModalOpen(true);
+  };
+
+  const handleEnroll = async () => {
+    try {
+      await axios.post('http://localhost:5000/api/enroll', { courses }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      alert('Enrolled successfully!');
+    } catch (error) {
+      console.error('Error enrolling in courses:', error);
+      alert('Failed to enroll in courses.');
+    }
   };
 
   return (
     <div className="bg-gray-50 min-h-screen p-6">
-      {/* Header Section */}
       <div className="bg-white shadow-md rounded-lg p-6 flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">Courses for This Semester</h2>
         <button
@@ -40,11 +67,10 @@ export default function CourseForEnroll() {
           onClick={() => setIsAddCourseModalOpen(true)}
           className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5"
         >
-          Add New Course
+          Add Course
         </button>
       </div>
 
-      {/* Table Section */}
       <div className="relative overflow-x-auto shadow-md sm:rounded-lg bg-white">
         <table className="w-full text-sm text-left text-gray-500 border-collapse">
           <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
@@ -56,14 +82,14 @@ export default function CourseForEnroll() {
             </tr>
           </thead>
           <tbody>
-            {courses.map((course, index) => (
-              <tr key={index} className="bg-white border-b hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium text-gray-900">{course.name}</td>
-                <td className="px-6 py-4">{course.code}</td>
-                <td className="px-6 py-4">{course.credits}</td>
+            {courses.map((course) => (
+              <tr key={course.Course_id} className="bg-white border-b hover:bg-gray-50">
+                <td className="px-6 py-4 font-medium text-gray-900">{course.Coursename}</td>
+                <td className="px-6 py-4">{course.Coursecode}</td>
+                <td className="px-6 py-4">{course.Credit}</td>
                 <td className="px-6 py-4 text-center">
                   <button
-                    onClick={() => handleDropClick(course)} // Open drop modal when clicked
+                    onClick={() => handleDropClick(course)}
                     className="text-red-600 hover:underline hover:text-red-800"
                   >
                     Drop
@@ -75,29 +101,27 @@ export default function CourseForEnroll() {
         </table>
       </div>
 
-      {/* Enroll Button */}
       <div className="flex justify-end mt-6">
         <button
           type="button"
+          onClick={handleEnroll}
           className="text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-300 font-medium rounded-lg text-sm px-6 py-2.5"
         >
           Enroll
         </button>
       </div>
 
-      {/* Add Course Modal */}
       <AddCourseModal
         open={isAddCourseModalOpen}
         onClose={() => setIsAddCourseModalOpen(false)}
         onAddCourse={handleAddCourse}
       />
 
-      {/* Drop Course Modal */}
       <DropCourseModal
         open={isDropCourseModalOpen}
         onClose={() => setIsDropCourseModalOpen(false)}
         onConfirm={() => handleDropCourse(courseToDrop)}
-        courseName={courseToDrop?.name}
+        courseName={courseToDrop?.Coursename} // Adjusted to match the property name
       />
     </div>
   );

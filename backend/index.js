@@ -72,6 +72,7 @@ app.post('/api/login', async (req, res) => {
     const token = jwt.sign(
       {
         id: user.Userid,
+        UniversityId: user.University_id,
         collegeId: user.College_id,
         role: user.Role_id,
         DepartmentId: user.Department_id,
@@ -83,7 +84,7 @@ app.post('/api/login', async (req, res) => {
     // Map role ID to frontend routes
     const roleRoutes = {
       1: '/Dashboard', // College Dean
-      4: '/StudentCourses', // Student
+      4: '/StudentGpa', // Student
       2: '/DepartmentStudents', // Department Head
       3: '/InstructorCourses', // Instructor
     };
@@ -94,6 +95,7 @@ app.post('/api/login', async (req, res) => {
       token,
       user: {
         id: user.Userid,
+        UniversityId: user.University_id,
         name: user.FullName,
         role: user.Role_id,
         collegeId: user.College_id,
@@ -878,6 +880,182 @@ app.post('/api/add-assessments', authenticateToken, async (req, res) => {
   } catch (error) {
       console.error('Error adding assessments:', error);
       res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+});
+
+
+// API Endpoint to Get Courses for a Student's Semester by Department ID
+app.get('/api/Semestercourses', authenticateToken, async (req, res) => {
+  const { UniversityId } = req.user; // Extracting student university ID from the token
+
+  // Log incoming request details
+  console.log('Received request to get courses for student ID:', UniversityId);
+
+  try {
+      // Query to get the semester ID and department ID for the student
+      const [student] = await db.query(`
+          SELECT Semester_id, Department_id 
+          FROM student 
+          WHERE Student_Uni_id = ?
+      `, [UniversityId]);
+
+      // Check if the student exists
+      if (student.length === 0) {
+          return res.status(404).json({ message: 'Student not found.' });
+      }
+
+      const semesterId = student[0].Semester_id;
+      const departmentId = student[0].Department_id;
+
+      // Query to get courses for the specified semester and department
+      const [courses] = await db.query(`
+          SELECT 
+              c.Course_id,
+              c.Coursecode,
+              c.Coursename,
+              c.Credit
+          FROM 
+              course c
+          WHERE 
+              c.Semester_id = ? AND c.Department_id = ?
+      `, [semesterId, departmentId]);
+
+      // Check if courses were found
+      if (courses.length === 0) {
+          return res.status(404).json({ message: 'No courses found for this semester in the department.' });
+      }
+
+      // Send success response with courses data
+      res.status(200).json(courses);
+  } catch (error) {
+      console.error('Error retrieving courses:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// New endpoint for enrolling in multiple courses
+app.post('/api/enroll', authenticateToken, async (req, res) => {
+  const { enrollments } = req.body; // Expecting an array of { courseId, semesterId }
+  const UniversityId = req.user?.UniversityId; // Ensure University_id is properly retrieved
+  console.log(UniversityId)
+
+  if (!UniversityId) {
+    return res.status(401).json({ message: 'Unauthorized: Invalid or missing University ID' });
+  }
+
+  if (!Array.isArray(enrollments) || enrollments.length === 0) {
+    return res.status(400).json({ message: 'Missing required fields: enrollments array' });
+  }
+
+  try {
+    // Step 1: Fetch completed courses for the student
+    const [completedCourses] = await db.query(
+      `SELECT Course_id FROM enrollment WHERE Student_Uni_id = ?`,
+      [UniversityId]
+    );
+
+    const completedCourseIds = completedCourses.map(course => course.Course_id);
+
+    // Step 2: Validate prerequisites for each enrollment
+    const failedEnrollments = [];
+    for (const { courseId } of enrollments) {
+      const [prerequisites] = await db.query(
+        `SELECT Prerequisite_courses_id FROM prerequisite_course WHERE Course_id = ?`,
+        [courseId]
+      );
+
+      const prerequisiteIds = prerequisites.map(prerequisite => prerequisite.Prerequisite_courses_id);
+      const unmetPrerequisites = prerequisiteIds.filter(prereqId => !completedCourseIds.includes(prereqId));
+
+      if (unmetPrerequisites.length > 0) {
+        failedEnrollments.push({ courseId, unmetPrerequisites });
+      }
+    }
+
+    if (failedEnrollments.length > 0) {
+      return res.status(400).json({
+        message: 'Cannot enroll in courses due to unmet prerequisites',
+        failedEnrollments,
+      });
+    }
+
+    // Step 3: Check semester ECTS limit
+    const semesterId = enrollments[0]?.semesterId; // Assuming all enrollments are for the same semester
+    const [[semesterInfo]] = await db.query(
+      `SELECT Max_ects FROM semesters WHERE Semester_id = ?`,
+      [semesterId]
+    );
+
+    if (!semesterInfo) {
+      return res.status(404).json({ message: 'Semester not found' });
+    }
+
+    const maxEcts = semesterInfo.Max_ects;
+
+    // Fetch current enrolled courses and their credits for the semester
+    const [currentEnrollments] = await db.query(
+      `
+      SELECT c.Credit FROM enrollment e
+      JOIN course c ON e.Course_id = c.Course_id
+      WHERE e.Student_Uni_id = ? AND e.Semester_id = ?
+      `,
+      [UniversityId, semesterId]
+    );
+
+    const currentEcts = currentEnrollments.reduce((total, course) => total + course.Credit, 0);
+
+    // Calculate new total ECTS with the new courses
+    const newCourseIds = enrollments.map(({ courseId }) => courseId);
+    const [newCourses] = await db.query(
+      `SELECT Course_id, Credit FROM course WHERE Course_id IN (?)`,
+      [newCourseIds]
+    );
+
+    const newEcts = newCourses.reduce((total, course) => total + course.Credit, 0);
+    const totalEcts = currentEcts + newEcts;
+
+    // Validate against max ECTS
+    if (totalEcts > maxEcts) {
+      return res.status(400).json({
+        message: 'Enrollment exceeds maximum ECTS limit for the semester. Please drop a course.',
+        maxEcts,
+        totalEcts,
+      });
+    }
+
+    // Step 4: Prevent duplicate enrollments
+    const [existingEnrollments] = await db.query(
+      `SELECT Course_id FROM enrollment WHERE Student_Uni_id = ? AND Semester_id = ?`,
+      [UniversityId, semesterId]
+    );
+
+    const existingCourseIds = existingEnrollments.map(enrollment => enrollment.Course_id);
+    const duplicateCourses = newCourseIds.filter(courseId => existingCourseIds.includes(courseId));
+
+    if (duplicateCourses.length > 0) {
+      return res.status(400).json({
+        message: 'Cannot enroll: Duplicate course(s) detected',
+        duplicateCourses,
+      });
+    }
+
+    // Step 5: Proceed with enrollment
+    const sql = `
+      INSERT INTO enrollment (Student_Uni_id, Course_id, Semester_id)
+      VALUES (?, ?, ?)
+    `;
+
+    const promises = enrollments.map(({ courseId, semesterId }) => {
+      const values = [UniversityId, courseId, semesterId];
+      return db.query(sql, values);
+    });
+
+    await Promise.all(promises);
+
+    res.status(201).json({ message: 'Enrolled successfully in multiple courses' });
+  } catch (error) {
+    console.error('Error enrolling in courses:', error); // Log the error
+    res.status(500).json({ message: 'Error enrolling in courses', error: error.message });
   }
 });
 

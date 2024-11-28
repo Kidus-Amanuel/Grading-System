@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import axios from 'axios';
 
 const MODAL_STYLES = {
   position: 'fixed',
@@ -26,19 +27,29 @@ const OVERLAY_STYLES = {
 };
 
 export default function AddCourseModal({ open, onClose, onAddCourse }) {
-  // Static list of courses
-  const [courses] = useState([
-    { id: 1, name: 'Introduction to Psychology', code: 'PSY101', credits: 3 },
-    { id: 2, name: 'Calculus I', code: 'MATH101', credits: 4 },
-    { id: 3, name: 'Modern Literature', code: 'ENG201', credits: 3 },
-    { id: 4, name: 'Organic Chemistry', code: 'CHEM301', credits: 4 },
-    { id: 5, name: 'Data Structures', code: 'CS202', credits: 3 },
-  ]);
+  const [courses, setCourses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredCourses, setFilteredCourses] = useState(courses);
+  const [filteredCourses, setFilteredCourses] = useState([]);
   const [selectedCourses, setSelectedCourses] = useState([]);
 
-  // Filter courses based on the search term
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/depcourses', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+        setCourses(response.data);
+        setFilteredCourses(response.data);
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+      }
+    };
+
+    if (open) {
+      fetchCourses();
+    }
+  }, [open]);
+
   useEffect(() => {
     if (searchTerm) {
       setFilteredCourses(
@@ -51,27 +62,23 @@ export default function AddCourseModal({ open, onClose, onAddCourse }) {
     }
   }, [searchTerm, courses]);
 
-  // Handle adding the selected courses
   const handleAddCourses = () => {
     if (selectedCourses.length === 0) {
       alert('Please select at least one course.');
       return;
     }
 
-    onAddCourse(selectedCourses);
+    onAddCourse(selectedCourses); // Pass the selected courses back to the parent
+    console.log('Selected Courses:', selectedCourses); // Debug log
 
-    // Reset form
     setSelectedCourses([]);
     onClose();
   };
 
-  // Handle course selection from the dropdown
   const handleSelectCourse = (course) => {
     if (selectedCourses.find((c) => c.id === course.id)) {
-      // If the course is already selected, deselect it
       setSelectedCourses(selectedCourses.filter((c) => c.id !== course.id));
     } else {
-      // Otherwise, add the course to the selection
       setSelectedCourses([...selectedCourses, course]);
     }
   };
