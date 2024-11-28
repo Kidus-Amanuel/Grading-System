@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import Assessment from './Assessment'; // Ensure this path is correct
-import AssigningInstructor from './AssigningInstructor'; // Ensure this path is correct
+import Assessment from './Assessment';
+import AssigningInstructor from './AssigningInstructor';
 
 export default function ListDepCourses() {
     const [courses, setCourses] = useState([]);
@@ -10,14 +10,14 @@ export default function ListDepCourses() {
     const [selectedCourse, setSelectedCourse] = useState(null);
     const [error, setError] = useState(null);
 
-    // Fetch courses from the API
     const fetchCourses = async () => {
         try {
             const response = await axios.get('http://localhost:5000/api/depcourses', {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}` // Adjust according to your token storage
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
                 }
             });
+            console.log('Courses fetched:', response.data); // Debugging log
             setCourses(response.data);
         } catch (err) {
             console.error('Error fetching courses:', err);
@@ -26,13 +26,12 @@ export default function ListDepCourses() {
     };
 
     useEffect(() => {
-        fetchCourses(); // Fetch courses when the component mounts
+        fetchCourses();
     }, []);
 
-    // Group courses by semester
     const groupedCourses = () => {
         return courses.reduce((acc, course) => {
-            const semester = course.semester;  
+            const semester = course.semester;
             if (!acc[semester]) {
                 acc[semester] = [];
             }
@@ -42,16 +41,18 @@ export default function ListDepCourses() {
     };
 
     const handleAssignClick = (course) => {
+        console.log('Selected course:', course); // Debugging log
         setSelectedCourse(course);
         setAssigningModalOpen(true);
     };
 
     const handleAssessmentClick = (course) => {
+        console.log('Course passed to assessment modal:', course);
         setSelectedCourse(course);
         setAssessmentModalOpen(true);
     };
 
-    const groupedCoursesData = groupedCourses(); // Call the grouping function
+    const groupedCoursesData = groupedCourses();
 
     return (
         <div className="mb-6">
@@ -76,15 +77,15 @@ export default function ListDepCourses() {
                                     <td className="px-6 py-4">{course.credit}</td>
                                     <td className="px-6 py-4">
                                         <div className='flex justify-between px-5'>
-                                            <button 
+                                            <button
                                                 className="text-blue-600 hover:text-blue-900"
-                                                onClick={() => handleAssessmentClick(course)} // Open assessment modal
+                                                onClick={() => handleAssessmentClick(course)}
                                             >
                                                 Assessment
-                                            </button>    
-                                            <button 
+                                            </button>
+                                            <button
                                                 className="text-blue-600 hover:text-blue-900"
-                                                onClick={() => handleAssignClick(course)} // Open assigning instructor modal
+                                                onClick={() => handleAssignClick(course)}
                                             >
                                                 Assign
                                             </button>
@@ -96,14 +97,14 @@ export default function ListDepCourses() {
                     </table>
                 </div>
             ))}
-            <Assessment 
-                open={assessmentModalOpen} 
-                onClose={() => setAssessmentModalOpen(false)} 
-                course={selectedCourse} 
-            />
             <AssigningInstructor 
                 open={assigningModalOpen} 
                 onClose={() => setAssigningModalOpen(false)} 
+                course={selectedCourse} 
+            />
+            <Assessment 
+                open={assessmentModalOpen} 
+                onClose={() => setAssessmentModalOpen(false)} 
                 course={selectedCourse} 
             />
         </div>

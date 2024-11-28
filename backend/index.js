@@ -732,82 +732,155 @@ app.get('/api/depcourses', authenticateToken, async (req, res) => {
       res.status(500).json({ message: 'Internal server error.' });
   }
 });
+  
+/// introuctors for the department
 
-// assign course
+app.get('/api/instructors', authenticateToken, async (req, res) => {
+  const { DepartmentId } = req.user; // Extracting departmentId from the token
 
-app.post('/api/assign-course', authenticateToken, async (req, res) => {
-  const { courseId, instructorUniId, semesterId } = req.body;
-
-  console.log('Assigning course request:', { courseId, instructorUniId, semesterId });
-
-  // Validate input
-  if (!courseId || !instructorUniId || !semesterId) {
-      return res.status(400).json({ message: 'Course ID, Instructor ID, and Semester ID are required.' });
-  }
+  // Log incoming request details
+  console.log('Received request to get instructors for department ID:', DepartmentId);
 
   try {
-      // Check if course exists
-      const courseExists = await db.query(`
-          SELECT * FROM course WHERE Course_id = ? AND Semester_id = ?
-      `, [courseId, semesterId]);
-      
-      if (courseExists.length === 0) {
-          return res.status(404).json({ message: 'Course not found for the given semester.' });
+      // Query to get instructors from the specified department
+      const [instructors] = await db.query(`
+          SELECT 
+              u.University_id,
+              u.FullName,
+              u.Email
+          FROM 
+              user u
+          WHERE 
+              u.Department_id = ? AND u.Role_id = 3
+      `, [DepartmentId]);
+
+      // Log the query results for debugging
+      console.log('Instructors found:', instructors);
+
+      // Check if instructors were found
+      if (instructors.length === 0) {
+          return res.status(404).json({ message: 'No instructors found for this department.' });
       }
 
-      // Check if the instructor exists and is approved
-      const instructorExists = await db.query(`
-          SELECT * FROM user WHERE University_id = ? AND Role_id = 
-          (SELECT Role_id FROM roles WHERE Role_name = 'Instructor') AND Approve_status = 'Approved'
-      `, [instructorUniId]);
-      
-      if (instructorExists.length === 0) {
-          return res.status(404).json({ message: 'Instructor not found or not approved.' });
-      }
-
-      // Check if the assignment already exists
-      const existingAssignment = await db.query(`
-          SELECT * FROM assignment_course 
-          WHERE Course_id = ? AND Semester_id = ?
-      `, [courseId, semesterId]);
-
-      if (existingAssignment.length > 0) {
-          // Check if the assignment needs an update
-          const currentInstructor = existingAssignment[0].Instructor_Uni_id;
-          if (currentInstructor === instructorUniId) {
-              return res.status(200).json({ message: 'Instructor assignment is already up-to-date.' });
-          }
-
-          // Update existing assignment
-          const updateResult = await db.query(`
-              UPDATE assignment_course
-              SET Instructor_Uni_id = ?
-              WHERE Course_id = ? AND Semester_id = ?
-          `, [instructorUniId, courseId, semesterId]);
-
-          if (updateResult.affectedRows > 0) {
-              return res.status(200).json({ message: 'Instructor assignment updated successfully.' });
-          } else {
-              return res.status(500).json({ message: 'Failed to update instructor assignment.' });
-          }
-      } else {
-          // Insert new assignment
-          const insertResult = await db.query(`
-              INSERT INTO assignment_course (Course_id, Instructor_Uni_id, Semester_id)
-              VALUES (?, ?, ?)
-          `, [courseId, instructorUniId, semesterId]);
-
-          if (insertResult.affectedRows > 0) {
-              return res.status(201).json({ message: 'Instructor assigned successfully.' });
-          } else {
-              return res.status(500).json({ message: 'Failed to assign instructor.' });
-          }
-      }
+      // Send success response with instructors data
+      res.status(200).json(instructors);
   } catch (error) {
-      console.error('Error during course assignment:', error);
+      console.error('Error retrieving instructors:', error);
       res.status(500).json({ message: 'Internal server error.' });
   }
 });
+// assign course
+
+app.post('/api/assign-course-instructor', authenticateToken, async (req, res) => {
+  const { courseId, instructorUniId } = req.body;
+
+  // Input validation
+  if (!courseId || !instructorUniId) {
+    return res.status(400).json({ message: 'Missing required fields: courseId and instructorUniId' });
+  }
+
+  try {
+    // Check if course exists
+    const [courseExists] = await db.query(`
+      SELECT *
+      FROM course
+      WHERE Course_id = ?
+    `, [courseId]);
+
+    if (courseExists.length === 0) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if instructor exists
+    const [instructorExists] = await db.query(`
+      SELECT *
+      FROM user
+      WHERE University_id = ? AND Role_id IN (SELECT Role_id FROM roles WHERE Role_name = 'Instructor')
+    `, [instructorUniId]);
+
+    if (instructorExists.length === 0) {
+      return res.status(404).json({ message: 'Instructor not found or not an instructor' });
+    }
+
+    // Check if course is already assigned to an instructor
+    const [existingAssignment] = await db.query(`
+      SELECT *
+      FROM assignment_course
+      WHERE Course_id = ?
+    `, [courseId]);
+
+    if (existingAssignment.length > 0) {
+      // Update the assignment to the new instructor
+      await db.query(`
+        UPDATE assignment_course
+        SET Instructor_Uni_id = ?
+        WHERE Course_id = ?
+      `, [instructorUniId, courseId]);
+
+      return res.status(200).json({ message: 'Assignment updated to the new instructor successfully' });
+    } else {
+      // Create a new assignment
+      await db.query(`
+        INSERT INTO assignment_course (Course_id, Instructor_Uni_id)
+        VALUES (?, ?)
+      `, [courseId, instructorUniId]);
+
+      return res.status(201).json({ message: 'Course assigned to instructor successfully' });
+    }
+  } catch (error) {
+    console.error('Error assigning course to instructor:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+});
+
+//assesment components
+
+app.post('/api/add-assessments', authenticateToken, async (req, res) => {
+  const { courseId, assessments } = req.body;
+
+  // Input validation
+  if (!courseId || !Array.isArray(assessments) || assessments.length === 0) {
+      return res.status(400).json({ message: 'Invalid input: courseId and assessments are required.' });
+  }
+
+  try {
+      // Check if the course exists
+      const [courseExists] = await db.query(`
+          SELECT *
+          FROM course
+          WHERE Course_id = ?
+      `, [courseId]);
+
+      if (courseExists.length === 0) {
+          return res.status(404).json({ message: 'Course not found.' });
+      }
+
+      // Delete all existing assessments for the given course
+      await db.query(`
+          DELETE FROM assessment_component
+          WHERE Course_id = ?
+      `, [courseId]);
+
+      // Validate total weight does not exceed 100%
+      const totalWeight = assessments.reduce((sum, { weight }) => sum + weight, 0);
+      if (totalWeight > 100) {
+          return res.status(400).json({ message: 'Total weight of assessments cannot exceed 100%.' });
+      }
+
+      // Insert the new assessments for the course
+      const insertValues = assessments.map(({ componentName, weight }) => [componentName, weight, courseId]);
+      await db.query(`
+          INSERT INTO assessment_component (Component_name, Weights, Course_id)
+          VALUES ?
+      `, [insertValues]);
+
+      res.status(201).json({ message: 'Assessments replaced successfully.' });
+  } catch (error) {
+      console.error('Error adding assessments:', error);
+      res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+});
+
 
 // Catch-all for undefined routes
 app.use((req, res) => {

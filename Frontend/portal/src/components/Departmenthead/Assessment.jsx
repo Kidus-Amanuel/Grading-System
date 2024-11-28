@@ -32,34 +32,76 @@ export default function Assessment({ open, onClose, course }) {
 
     if (!open) return null;
 
+    // Debugging log for received course
+    console.log('Course received in modal:', course);
+
     const handleAddAssessment = () => {
         if (!componentName || !weight) {
             alert('Please fill in all fields.');
             return;
         }
 
+        const weightValue = parseFloat(weight);
+        const totalWeight = assessments.reduce((total, assessment) => total + assessment.weight, 0);
+
+        if (totalWeight + weightValue > 100) {
+            alert('Total weight cannot exceed 100%.');
+            return;
+        }
+
         const newAssessment = {
             componentName,
-            weight: parseFloat(weight),
+            weight: weightValue,
         };
 
-        setAssessments([...assessments, newAssessment]);
+        setAssessments(prevAssessments => [...prevAssessments, newAssessment]);
         setComponentName('');
         setWeight('');
     };
 
-    const handleSubmit = () => {
-        // Handle submission logic here
-        console.log('Submitting:', assessments);
-        onClose(); // Close the modal after submission
+    const handleSubmit = async () => {
+        if (assessments.length === 0) {
+            alert('Please add at least one assessment component.');
+            return;
+        }
+
+        const payload = {
+            courseId: course?.id, // Ensure the correct field is used
+            assessments,
+        };
+        console.log('Submitting payload:', payload);
+
+        try {
+            const response = await fetch('http://localhost:5000/api/add-assessments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`, // Include token if needed
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Assessments added successfully');
+                console.log('Response:', data);
+                onClose(); // Close the modal after successful submission
+            } else {
+                alert(`Error: ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Error submitting assessments:', error);
+            alert('Failed to submit assessments');
+        }
     };
 
     return ReactDOM.createPortal(
         <>
-            <div style={OVERLAY_STYLES}></div>
+            <div style={OVERLAY_STYLES} onClick={onClose}></div>
             <div style={MODAL_STYLES}>
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Add Assessment for {course?.courseName}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Add Assessment for {course?.name}</h3>
                     <button 
                         onClick={onClose}
                         type="button"

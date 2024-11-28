@@ -124,10 +124,8 @@ CREATE TABLE assignment_course (
     Assignmentid INT AUTO_INCREMENT PRIMARY KEY,
     Course_id INT,
     Instructor_Uni_id VARCHAR(50),
-    Semester_id INT,
     FOREIGN KEY (Course_id) REFERENCES course(Course_id),
-    FOREIGN KEY (Instructor_Uni_id) REFERENCES user(University_id),
-    FOREIGN KEY (Semester_id) REFERENCES semesters(Semester_id)
+    FOREIGN KEY (Instructor_Uni_id) REFERENCES user(University_id)
 );
 
 -- 	Table 13: student_record_table
