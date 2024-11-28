@@ -18,7 +18,6 @@ import InstructorCourses from './pages/Instructor/InstructorCourses.jsx';
 import InstructorGrade from './pages/Instructor/InstructorGrade.jsx';
 import InstructorProfile from './pages/Instructor/InstructorProfile.jsx';
 import InstructorSide from './components/Instructor/InstructorSide.jsx';
-import StudentCourses from './pages/Student/StudentCourses.jsx';
 import StudentGpa from './pages/Student/StudentGpa.jsx';
 import StudentProfile from './pages/Student/StudentProfile.jsx';
 import StudentSide from './components/Student/StudentSide.jsx';
@@ -26,6 +25,7 @@ import DepartCourses from './components/collegeDean/DepartCourses.jsx';
 import InsCourseStudent from './components/Instructor/InsCourseStudent.jsx';
 import Assessment from './components/Instructor/Assessment.jsx';
 import StudentGrade from './components/Instructor/StudentGrade.jsx';
+import CourseEnrollment from './components/Student/CourseEnrollment.jsx';
 
 function App() {
   const location = useLocation();
@@ -40,7 +40,7 @@ function App() {
     
   ];
   const instructorRoutes = ['/InstructorCourses', '/InstructorGrade', '/InstructorProfile','/InsCourseStudent','/Assessment','/StudentGrade'];
-  const studentRoutes = ['/StudentCourses', '/StudentGpa', '/StudentProfile'];
+  const studentRoutes = ['/StudentGpa', '/StudentProfile','/CourseEnrollment'];
 
   // Determine which sidebar to show
   const showDeanSidebar = deanRoutes.includes(location.pathname);
@@ -81,9 +81,9 @@ function App() {
           <Route path="/Assessment" element={<Assessment />} />
           <Route path="/StudentGrade" element={<StudentGrade/>} />
           <Route path="/InstructorProfile" element={<InstructorProfile />} />
-          <Route path="/StudentCourses" element={<StudentCourses />} />
           <Route path="/StudentGpa" element={<StudentGpa />} />
           <Route path="/StudentProfile" element={<StudentProfile />} />
+          <Route path="/CourseEnrollment" element={<CourseEnrollment/>} />
         </Routes>
       </div>
     </div>

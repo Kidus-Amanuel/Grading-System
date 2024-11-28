@@ -98,12 +98,14 @@ CREATE TABLE student (
     Student_Uni_id VARCHAR(50) UNIQUE NOT NULL,
     Batch_id INT,
     Department_id INT,
+    Semester_id INT,
     Enrollment_status ENUM('Active', 'Inactive', 'Graduated', 'Dropped') DEFAULT 'Active',
     Created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (Student_Uni_id) REFERENCES user(University_id),
     FOREIGN KEY (Batch_id) REFERENCES batche(Batch_id),
-    FOREIGN KEY (Department_id) REFERENCES department(Department_id)
+    FOREIGN KEY (Department_id) REFERENCES department(Department_id),
+    FOREIGN KEY (Semester_id) REFERENCES semesters(Semester_id)
 );
 
 
