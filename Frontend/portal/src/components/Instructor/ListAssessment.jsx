@@ -1,82 +1,136 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
-const students = [
-    { id: 'S001', name: 'Alice Johnson' },
-    { id: 'S002', name: 'Bob Smith' },
-    { id: 'S003', name: 'Charlie Brown' },
-    { id: 'S004', name: 'Diana Prince' },
-    { id: 'S005', name: 'Edward Kenway' },
-];
+export default function ListAssessment({ courseId }) {
+    const [students, setStudents] = useState([]);
+    const [components, setComponents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [assessments, setAssessments] = useState({});
 
-export default function ListAssessment() {
-    // State to hold assessment scores
-    const [assessments, setAssessments] = useState(
-        students.reduce((acc, student) => {
-            acc[student.id] = { assignment: '', midterm: '', final: '' };
-            return acc;
-        }, {})
-    );
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
 
-    const handleInputChange = (studentId, assessmentType, value) => {
+            try {
+                // Fetch enrolled students
+                const studentsResponse = await axios.get(`http://localhost:5000/api/enrolledStudents/${courseId}`, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                });
+                setStudents(studentsResponse.data);
+
+                // Fetch assessment components
+                const componentsResponse = await axios.get(`http://localhost:5000/api/assessmentComponents/${courseId}`, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                });
+                setComponents(componentsResponse.data);
+
+                // Initialize assessments state
+                const initialAssessments = studentsResponse.data.reduce((acc, student) => {
+                    acc[student.University_id] = componentsResponse.data.reduce((compAcc, component) => {
+                        compAcc[component.Component_name] = ''; // Initialize each component score
+                        return compAcc;
+                    }, {});
+                    return acc;
+                }, {});
+                setAssessments(initialAssessments);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                setError('Failed to load data. Please try again later.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [courseId]);
+
+    const handleInputChange = (studentId, componentName, value) => {
         setAssessments({
             ...assessments,
             [studentId]: {
                 ...assessments[studentId],
-                [assessmentType]: value,
+                [componentName]: value,
             },
         });
     };
 
+    const handleSubmit = async () => {
+        const scores = [];
+
+        // Prepare the scores array from assessments state
+        for (const studentId in assessments) {
+            const studentScores = components.map((component) => ({
+                Student_Uni_id: studentId,
+                Course_id: courseId,
+                Component_id: component.Component_id,
+                Score: parseFloat(assessments[studentId][component.Component_name]) || 0, // Default to 0 if empty
+            }));
+            scores.push(...studentScores);
+        }
+
+        try {
+            const response = await axios.post('http://localhost:5000/api/studentAssessmentScores', scores, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+            console.log(response.data);
+            alert(response.data.message); // Notify user of success
+        } catch (error) {
+            console.error('Error submitting scores:', error);
+            alert('Failed to submit scores. Please try again later.');
+        }
+    };
+
+    if (loading) return <div className="text-center text-blue-500">Loading data...</div>;
+    if (error) return <div className="text-center text-red-500">{error}</div>;
+
     return (
-        <div className="container mx-auto p-4">
-            <h2 className="text-2xl font-semibold mb-4">Assessment List</h2>
-            <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
-                <table className="w-full text-sm text-left text-gray-500">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-100">
-                        <tr>
-                            <th scope="col" className="px-6 py-3">Student ID</th>
-                            <th scope="col" className="px-6 py-3">Student Name</th>
-                            <th scope="col" className="px-6 py-3">Assignment</th>
-                            <th scope="col" className="px-6 py-3">Midterm</th>
-                            <th scope="col" className="px-6 py-3">Final</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {students.map((student) => (
-                            <tr key={student.id} className="bg-white border-b hover:bg-gray-50">
-                                <td className="px-6 py-4 font-medium text-gray-900">{student.id}</td>
-                                <td className="px-6 py-4">{student.name}</td>
-                                <td className="px-6 py-4">
-                                    <input
-                                        type="number"
-                                        value={assessments[student.id].assignment}
-                                        onChange={(e) => handleInputChange(student.id, 'assignment', e.target.value)}
-                                        className="border border-gray-300 rounded p-1"
-                                        placeholder="Enter Assignment Score"
-                                    />
-                                </td>
-                                <td className="px-6 py-4">
-                                    <input
-                                        type="number"
-                                        value={assessments[student.id].midterm}
-                                        onChange={(e) => handleInputChange(student.id, 'midterm', e.target.value)}
-                                        className="border border-gray-300 rounded p-1"
-                                        placeholder="Enter Midterm Score"
-                                    />
-                                </td>
-                                <td className="px-6 py-4">
-                                    <input
-                                        type="number"
-                                        value={assessments[student.id].final}
-                                        onChange={(e) => handleInputChange(student.id, 'final', e.target.value)}
-                                        className="border border-gray-300 rounded p-1"
-                                        placeholder="Enter Final Score"
-                                    />
-                                </td>
+        <div className="container mx-auto p-6">
+            <h2 className="text-3xl font-semibold mb-6 text-center">Assessment List</h2>
+            <div className="bg-white shadow-lg rounded-lg p-6">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm text-left text-gray-700">
+                        <thead className="bg-gray-200 text-xs text-gray-600 uppercase">
+                            <tr>
+                                <th className="px-4 py-2">Student ID</th>
+                                <th className="px-4 py-2">Student Name</th>
+                                {components.map(component => (
+                                    <th key={component.Component_id} className="px-4 py-2">{component.Component_name} (Max: {component.Weights}%)</th>
+                                ))}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {students.map((student) => (
+                                <tr key={student.University_id} className="border-b hover:bg-gray-50">
+                                    <td className="px-4 py-3 font-medium text-gray-900">{student.University_id}</td>
+                                    <td className="px-4 py-3">{student.FullName}</td>
+                                    {components.map(component => (
+                                        <td key={component.Component_id} className="px-4 py-3">
+                                            <input
+                                                type="number"
+                                                value={assessments[student.University_id]?.[component.Component_name] || ''}
+                                                onChange={(e) => handleInputChange(student.University_id, component.Component_name, e.target.value)}
+                                                className="border border-gray-300 rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                placeholder="Score"
+                                                max={component.Weights} // Limit the score input to the component weight
+                                            />
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="flex justify-end mt-4">
+                    <button 
+                        type="button" 
+                        onClick={handleSubmit} // Attach the submit function
+                        className="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5"
+                    >
+                        ADD
+                    </button>
+                </div>
             </div>
         </div>
     );

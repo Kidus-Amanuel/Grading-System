@@ -926,7 +926,12 @@ app.get('/api/Semestercourses', authenticateToken, async (req, res) => {
       }
 
       // Send success response with courses data
-      res.status(200).json(courses);
+      res.status(200).json(
+        {
+          semesterId: semesterId, // Include the student's semester ID
+          courses: courses         // Include the courses
+      }
+      );
   } catch (error) {
       console.error('Error retrieving courses:', error);
       res.status(500).json({ message: 'Internal server error.' });
@@ -1058,6 +1063,152 @@ app.post('/api/enroll', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error enrolling in courses', error: error.message });
   }
 });
+
+
+// API Endpoint to Get Courses Assigned to an Instructor
+app.get('/api/instructorCourses', authenticateToken, async (req, res) => {
+  const { UniversityId } = req.user; // Extracting instructor's university ID from the token
+
+  // Log incoming request details
+  console.log('Received request to get courses for instructor ID:', UniversityId);
+
+  try {
+      // Query to get courses assigned to the instructor
+      const [courses] = await db.query(`
+          SELECT 
+              c.Course_id,
+              c.Coursecode,
+              c.Coursename,
+              c.Credit,
+              a.Assignmentid
+          FROM 
+              assignment_course a
+          JOIN 
+              course c ON a.Course_id = c.Course_id
+          WHERE 
+              a.Instructor_Uni_id = ?
+      `, [UniversityId]);
+
+      // Check if courses were found
+      if (courses.length === 0) {
+          return res.status(404).json({ message: 'No courses found for this instructor.' });
+      }
+
+      // Send success response with courses data
+      res.status(200).json(courses);
+  } catch (error) {
+      console.error('Error retrieving assigned courses:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+// API Endpoint to Get Enrolled Students for a Specific Course
+app.get('/api/enrolledStudents/:courseId', authenticateToken, async (req, res) => {
+  const { courseId } = req.params; // Extracting course ID from request parameters
+
+  // Log incoming request details
+  console.log('Received request to get enrolled students for course ID:', courseId);
+
+  try {
+      // Query to get enrolled students for the specified course
+      const [students] = await db.query(`
+          SELECT 
+              u.FullName,
+              u.University_id,
+              e.Enrollment_date
+          FROM 
+              enrollment e
+          JOIN 
+              user u ON e.Student_Uni_id = u.University_id
+          WHERE 
+              e.Course_id = ?
+      `, [courseId]);
+
+      // Check if students were found
+      if (students.length === 0) {
+          return res.status(404).json({ message: 'No students enrolled in this course.' });
+      }
+
+      // Send success response with enrolled students data
+      res.status(200).json(students);
+  } catch (error) {
+      console.error('Error retrieving enrolled students:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// API Endpoint to Get Assessment Components for a Specific Course
+app.get('/api/assessmentComponents/:courseId', authenticateToken, async (req, res) => {
+  const { courseId } = req.params; // Extracting course ID from request parameters
+
+  // Log incoming request details
+  console.log('Received request to get assessment components for course ID:', courseId);
+
+  try {
+      // Query to get assessment components for the specified course
+      const [components] = await db.query(`
+          SELECT 
+              ac.Component_id,
+              ac.Component_name,
+              ac.Weights
+          FROM 
+              assessment_component ac
+          WHERE 
+              ac.Course_id = ?
+      `, [courseId]);
+
+      // Check if components were found
+      if (components.length === 0) {
+          return res.status(404).json({ message: 'No assessment components found for this course.' });
+      }
+
+      // Send success response with assessment components data
+      res.status(200).json(components);
+  } catch (error) {
+      console.error('Error retrieving assessment components:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+// API Endpoint to Store Multiple Student Assessment Scores
+app.post('/api/studentAssessmentScores', authenticateToken, async (req, res) => {
+  const scores = req.body; // Expecting an array of score objects
+
+  // Log incoming request details
+  console.log('Received request to store multiple student scores:', scores);
+
+  // Validate input data
+  if (!Array.isArray(scores) || scores.length === 0) {
+      return res.status(400).json({ message: 'Scores must be an array and cannot be empty.' });
+  }
+
+  try {
+      // Prepare the SQL query and values for batch insertion
+      const sql = `
+          INSERT INTO student_assessment_scores (Student_Uni_id, Course_id, Component_id, Score)
+          VALUES ?
+      `;
+      
+      const values = scores.map(score => [
+          score.Student_Uni_id,
+          score.Course_id,
+          score.Component_id,
+          score.Score
+      ]);
+
+      // Execute the batch insert
+      const result = await db.query(sql, [values]);
+
+      // Send success response
+      res.status(201).json({ message: 'Scores stored successfully.', insertedCount: result.affectedRows });
+  } catch (error) {
+      console.error('Error storing student scores:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
 
 
 // Catch-all for undefined routes

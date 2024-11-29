@@ -1,14 +1,12 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import {useLocation } from 'react-router-dom';
 import HeadBan from "../../components/Instructor/InstructorHeadban";
 import EnrolledStudents from "./EnrolledStudents";
 
 export default function InsCourseStudent() {
-    const navigate = useNavigate(); // Initialize useNavigate
+    const location = useLocation(); // Access location object
+    const { course } = location.state; // Extract course info from state
 
-    const handleAssessmentClick = () => {
-        navigate('/Assessment'); // Navigate to the Assessment page
-    };
 
     return (
         <div>
@@ -34,17 +32,10 @@ export default function InsCourseStudent() {
                     <hr />
                 </div>
                 <div>
-                    <EnrolledStudents />
+                    {/* Pass the course ID to the EnrolledStudents component */}
+                    <EnrolledStudents courseId={course.Course_id} />
                 </div>
-                <div className="p-6 flex justify-end pr-5">
-                    <button 
-                        type="button" 
-                        onClick={handleAssessmentClick} // Handle click
-                        className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
-                    >
-                        Assessment
-                    </button>
-                </div>
+                
             </div>
         </div>
     );

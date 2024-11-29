@@ -8,6 +8,8 @@ export default function CourseForEnroll() {
   const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
   const [isDropCourseModalOpen, setIsDropCourseModalOpen] = useState(false);
   const [courseToDrop, setCourseToDrop] = useState(null);
+  
+  const [semesterId, setSemesterId] = useState(null); // State for semester ID
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -15,7 +17,9 @@ export default function CourseForEnroll() {
         const response = await axios.get('http://localhost:5000/api/Semestercourses', {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
-        setCourses(response.data);
+        setSemesterId(response.data.semesterId); // Set the semester ID from the response
+        setCourses(response.data.courses); // Set the courses from the response
+        console.log("Courses fetched:", response.data.courses);
       } catch (error) {
         console.error('Error fetching courses:', error);
       }
@@ -25,15 +29,14 @@ export default function CourseForEnroll() {
   }, []);
 
   const handleAddCourse = (newCourses) => {
-    // Map the properties from the newCourses to the expected format
     const mappedCourses = newCourses.map(course => ({
-      Course_id: course.id,         // Map id to Course_id
-      Coursecode: course.code,      // Map code to Coursecode
-      Coursename: course.name,      // Map name to Coursename
-      Credit: course.credit,        // Map credit to Credit
+      Course_id: course.id,
+      Coursecode: course.code,
+      Coursename: course.name,
+      Credit: course.credit,
     }));
 
-    setCourses((prevCourses) => [...prevCourses, ...mappedCourses]); // Add mapped courses
+    setCourses((prevCourses) => [...prevCourses, ...mappedCourses]);
   };
 
   const handleDropCourse = (course) => {
@@ -47,8 +50,19 @@ export default function CourseForEnroll() {
   };
 
   const handleEnroll = async () => {
+    if (!semesterId) {
+      alert('Please select a semester first.');
+      return;
+    }
+
+    const enrollments = courses.map(course => ({
+      courseId: course.Course_id, // Use Course_id for courseId
+      semesterId: semesterId,      // Use the actual semesterId
+    }));
+    console.log("Enrollments to submit:", enrollments);
+    
     try {
-      await axios.post('http://localhost:5000/api/enroll', { courses }, {
+      await axios.post('http://localhost:5000/api/enroll', { enrollments }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       alert('Enrolled successfully!');
@@ -121,7 +135,7 @@ export default function CourseForEnroll() {
         open={isDropCourseModalOpen}
         onClose={() => setIsDropCourseModalOpen(false)}
         onConfirm={() => handleDropCourse(courseToDrop)}
-        courseName={courseToDrop?.Coursename} // Adjusted to match the property name
+        courseName={courseToDrop?.Coursename}
       />
     </div>
   );
