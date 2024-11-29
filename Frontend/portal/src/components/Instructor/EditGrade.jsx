@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import axios from 'axios';
 
 const MODAL_STYLES = {
     position: 'fixed',
@@ -11,8 +12,8 @@ const MODAL_STYLES = {
     borderRadius: '10px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
     zIndex: 1000,
-    width: '90%', // Responsive width
-    maxWidth: '400px', // Max width for larger screens
+    width: '90%',
+    maxWidth: '500px', // Reduced width for smaller modal
 };
 
 const OVERLAY_STYLES = {
@@ -25,23 +26,74 @@ const OVERLAY_STYLES = {
     zIndex: 1000,
 };
 
-export default function EditGrade({ open, onClose, student }) {
-    const [assignmentScore, setAssignmentScore] = useState(student ? student.assignmentScore || '' : '');
-    const [midtermScore, setMidtermScore] = useState(student ? student.midtermScore || '' : '');
-    const [finalScore, setFinalScore] = useState(student ? student.finalScore || '' : '');
+export default function EditGrade({ open, onClose, student, courseId }) {
+    const [assessmentComponents, setAssessmentComponents] = useState([]);
+    const [scores, setScores] = useState([]);
 
-    if (!open) return null;
+    useEffect(() => {
+        if (courseId) {
+            axios.get(`http://localhost:5000/api/assessmentComponents/${courseId}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            })
+            .then(response => {
+                setAssessmentComponents(response.data);
+                const initialScores = response.data.map(component => ({
+                    Component_id: component.Component_id,
+                    Score: '',
+                }));
+                setScores(initialScores);
+            })
+            .catch(error => {
+                console.error('Error fetching assessment components:', error);
+            });
+        }
+    }, [courseId]);
+
+    const handleScoreChange = (componentId, value) => {
+        setScores(prevScores =>
+            prevScores.map(score =>
+                score.Component_id === componentId
+                    ? { ...score, Score: value }
+                    : score
+            )
+        );
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Implement logic to save the updated scores
-        console.log(`Updated scores for ${student.id}: Assignment: ${assignmentScore}, Midterm: ${midtermScore}, Final: ${finalScore}`);
-        
-        // Alert the user that the assessment has been updated
-        alert(`Assessment updated for ${student.name} (ID: ${student.id})`);
 
-        onClose(); // Close the modal after submission
+        if (scores.some(score => !score.Score)) {
+            alert('Please enter scores for all components.');
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+
+        // Construct the data in the required format
+        const dataToSend = scores.map(score => ({
+            Student_Uni_id: student?.University_id,  // Student ID from the prop
+            Course_id: courseId,                      // Course ID from the prop
+            Component_id: score.Component_id,         // Component ID from the state
+            Score: parseFloat(score.Score),           // Score from the state
+        }));
+
+        axios.put('http://localhost:5000/api/studentAssessmentScores', dataToSend, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            console.log(response.data);
+            alert('Assessment updated successfully!');
+            onClose();
+        })
+        .catch(error => {
+            console.error('Error updating scores:', error);
+            alert('Failed to update scores.');
+        });
     };
+
+    if (!open) return null;
 
     return ReactDOM.createPortal(
         <>
@@ -61,63 +113,54 @@ export default function EditGrade({ open, onClose, student }) {
                     </button>
                 </div>
                 <form onSubmit={handleSubmit}>
-                    <div className="mb-4">
-                        <label className="block text-gray-700">Student ID</label>
-                        <input 
-                            type="text" 
-                            value={student?.id} 
-                            readOnly 
-                            className="border rounded-lg w-full px-3 py-2 mt-1"
-                        />
+                    <div className="mb-4 flex justify-between space-x-4">
+                        <div className="w-1/2">
+                            <label className="block text-gray-700 text-sm">Student ID</label>
+                            <input 
+                                type="text" 
+                                value={student?.University_id} 
+                                readOnly 
+                                className="border rounded-lg w-full px-2 py-1 mt-1 text-sm"
+                            />
+                        </div>
+                        <div className="w-1/2">
+                            <label className="block text-gray-700 text-sm">Student Name</label>
+                            <input 
+                                type="text" 
+                                value={student?.FullName} 
+                                readOnly 
+                                className="border rounded-lg w-full px-2 py-1 mt-1 text-sm"
+                            />
+                        </div>
                     </div>
-                    <div className="mb-4">
-                        <label className="block text-gray-700">Student Name</label>
-                        <input 
-                            type="text" 
-                            value={student?.name} 
-                            readOnly 
-                            className="border rounded-lg w-full px-3 py-2 mt-1"
-                        />
-                    </div>
-                    <div className="mb-4">
-                        <label className="block text-gray-700">Assignment Score</label>
-                        <input 
-                            type="number" 
-                            value={assignmentScore} 
-                            onChange={(e) => setAssignmentScore(e.target.value)} 
-                            className="border rounded-lg w-full px-3 py-2 mt-1"
-                            required
-                        />
-                    </div>
-                    <div className="mb-4">
-                        <label className="block text-gray-700">Midterm Score</label>
-                        <input 
-                            type="number" 
-                            value={midtermScore} 
-                            onChange={(e) => setMidtermScore(e.target.value)} 
-                            className="border rounded-lg w-full px-3 py-2 mt-1"
-                            required
-                        />
-                    </div>
-                    <div className="mb-4">
-                        <label className="block text-gray-700">Final Score</label>
-                        <input 
-                            type="number" 
-                            value={finalScore} 
-                            onChange={(e) => setFinalScore(e.target.value)} 
-                            className="border rounded-lg w-full px-3 py-2 mt-1"
-                            required
-                        />
-                    </div>
+
+                    {assessmentComponents.length > 0 ? (
+                        assessmentComponents.map(component => (
+                            <div className="mb-4" key={component.Component_id}>
+                                <label className="block text-gray-700 text-sm">{component.Component_name}</label>
+                                <input 
+                                    type="number"
+                                    value={scores.find(score => score.Component_id === component.Component_id)?.Score || ''}
+                                    onChange={(e) => handleScoreChange(component.Component_id, e.target.value)}
+                                    className="border rounded-lg w-full px-2 py-1 mt-1 text-sm"
+                                    required
+                                />
+                            </div>
+                        ))
+                    ) : (
+                        <p>No assessment components available for this course.</p>
+                    )}
+
                     <button 
                         type="submit" 
-                        className="w-full bg-blue-600 text-white rounded-lg py-2 mt-2 hover:bg-blue-700"
+                        className="w-full bg-blue-600 text-white rounded-lg py-2 mt-2 hover:bg-blue-700 text-sm"
                     >
                         Save
                     </button>
                 </form>
             </div>
         </>,
+
         document.getElementById('portal')
     );
 }

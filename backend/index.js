@@ -1176,21 +1176,179 @@ app.get('/api/assessmentComponents/:courseId', authenticateToken, async (req, re
 app.post('/api/studentAssessmentScores', authenticateToken, async (req, res) => {
   const scores = req.body; // Expecting an array of score objects
 
-  // Log incoming request details
   console.log('Received request to store multiple student scores:', scores);
 
-  // Validate input data
   if (!Array.isArray(scores) || scores.length === 0) {
+      console.log('Error: Scores must be an array and cannot be empty.');
       return res.status(400).json({ message: 'Scores must be an array and cannot be empty.' });
   }
 
   try {
-      // Prepare the SQL query and values for batch insertion
-      const sql = `
+      // Prepare the SQL query to check for existing entries
+      const sqlCheckExistence = `
+          SELECT * FROM student_assessment_scores
+          WHERE Student_Uni_id = ? AND Course_id = ? AND Component_id = ?
+      `;
+      
+      const sqlInsert = `
+          INSERT INTO student_assessment_scores (Student_Uni_id, Course_id, Component_id, Score)
+          VALUES ? 
+      `;
+
+      const values = [];
+      const existingRecords = [];
+
+      // First, check for duplicates
+      for (const score of scores) {
+          const { Student_Uni_id, Course_id, Component_id, Score } = score;
+
+          // Check if the record already exists for this student, course, and component
+          const [existingRecord] = await db.query(sqlCheckExistence, [Student_Uni_id, Course_id, Component_id]);
+
+          if (existingRecord && existingRecord.length > 0) {
+              existingRecords.push({ Student_Uni_id, Course_id, Component_id });
+              console.log(`Duplicate record found for Student ${Student_Uni_id} in Course ${Course_id} for Component ${Component_id}`);
+          } else {
+              // If no existing record, prepare the new score for insertion
+              values.push([Student_Uni_id, Course_id, Component_id, Score]);
+          }
+      }
+
+      // Insert the new scores that do not have duplicates
+      if (values.length > 0) {
+          await db.query(sqlInsert, [values]);
+          console.log('Scores successfully inserted into the database.');
+      }
+
+      // If no new records were inserted, let the user know
+      if (values.length === 0) {
+          return res.status(400).json({ message: 'No new scores to insert (duplicates found).' });
+      }
+
+      // Calculate final scores and grades
+      const studentScoresMap = {};
+
+      // Sum scores for each student and course
+      for (const score of scores) {
+          const { Student_Uni_id, Course_id, Score } = score;
+
+          // Initialize if not present
+          if (!studentScoresMap[Student_Uni_id]) {
+              studentScoresMap[Student_Uni_id] = {
+                  Course_id: Course_id,
+                  totalScore: 0,
+                  count: 0 // To keep track of the number of components
+              };
+          }
+
+          // Sum the scores
+          studentScoresMap[Student_Uni_id].totalScore += Score;
+          studentScoresMap[Student_Uni_id].count += 1; // Increment count of components
+
+          console.log(`Updated scores for ${Student_Uni_id} in course ${Course_id}: Total Score = ${studentScoresMap[Student_Uni_id].totalScore}, Components Count = ${studentScoresMap[Student_Uni_id].count}`);
+      }
+
+      // Now process each student to determine grades and insert into student_record_table
+      for (const [studentId, data] of Object.entries(studentScoresMap)) {
+          const { Course_id, totalScore } = data;
+
+          // Final score (sum of all components)
+          const finalScore = totalScore;
+          console.log(`Final score for ${studentId} in course ${Course_id}: ${finalScore}`);
+
+          // Determine grade and status
+          let grade, status;
+          if (finalScore >= 90) {
+            grade = 'A+';
+            status = 'Passed';
+        } else if (finalScore >= 85) {
+            grade = 'A';
+            status = 'Passed';
+        } else if (finalScore >= 80) {
+            grade = 'A-';
+            status = 'Passed';
+        } else if (finalScore >= 75) {
+            grade = 'B+';
+            status = 'Passed';
+        } else if (finalScore >= 70) {
+            grade = 'B';
+            status = 'Passed';
+        } else if (finalScore >= 65) {
+            grade = 'B-';
+            status = 'Passed';
+        } else if (finalScore >= 60) {
+            grade = 'C+';
+            status = 'Passed';
+        } else if (finalScore >= 55) {
+            grade = 'C';
+            status = 'Passed';
+        } else if (finalScore >= 50) {
+            grade = 'C-';
+            status = 'Passed';
+        } else if (finalScore >= 40) {
+            grade = 'D';
+            status = 'Passed';
+        } else {
+            grade = 'F';
+            status = 'Failed';
+        }
+          console.log(`Assigned grade for ${studentId}: ${grade}, Status: ${status}`);
+
+          // Fetch Semester ID and Credit Earned
+          const [studentData] = await db.query(`
+              SELECT Semester_id FROM student WHERE Student_Uni_id = ?
+          `, [studentId]);
+
+          const [courseData] = await db.query(`
+              SELECT Credit FROM course WHERE Course_id = ?
+          `, [Course_id]);
+
+          console.log("Semester Data:", studentData); // Log the fetched semester data
+          console.log("Credit Data:", courseData); // Log the fetched credit data
+          
+          const semesterId = studentData && studentData.length > 0 ? studentData[0].Semester_id : null;
+          const creditEarned = courseData && courseData.length > 0 ? courseData[0].Credit : null;
+
+          console.log("semester_id", semesterId); // Log the semester ID
+          console.log("credit", creditEarned); // Log the credit value
+
+          if (semesterId === null || creditEarned === null) {
+              console.log(`Error: Unable to find semester or credit information for ${studentId} in course ${Course_id}.`);
+              continue; // Skip this student if data is not found
+          }
+
+          // Insert into student_record_table
+          await db.query(`
+              INSERT INTO student_record_table (Student_Uni_id, Course_id, Semester_id, Grade, Credit_earned, Statues)
+              VALUES (?, ?, ?, ?, ?, ?)
+          `, [studentId, Course_id, semesterId, grade, creditEarned, status]);
+
+          console.log(`Record inserted for ${studentId} in student_record_table: Grade = ${grade}, Credit Earned = ${creditEarned}, Status = ${status}`);
+      }
+
+      res.status(201).json({ message: 'Scores stored and records updated successfully.', existingRecords });
+  } catch (error) {
+      console.error('Error processing student scores:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+app.post('/api/studentAssessmentScore', authenticateToken, async (req, res) => {
+  const scores = req.body; // Expecting an array of score objects
+
+  console.log('Received request to store multiple student scores:', scores);
+
+  if (!Array.isArray(scores) || scores.length === 0) {
+      console.log('Error: Scores must be an array and cannot be empty.');
+      return res.status(400).json({ message: 'Scores must be an array and cannot be empty.' });
+  }
+
+  try {
+      const sqlInsert = `
           INSERT INTO student_assessment_scores (Student_Uni_id, Course_id, Component_id, Score)
           VALUES ?
       `;
-      
       const values = scores.map(score => [
           score.Student_Uni_id,
           score.Course_id,
@@ -1198,18 +1356,304 @@ app.post('/api/studentAssessmentScores', authenticateToken, async (req, res) => 
           score.Score
       ]);
 
-      // Execute the batch insert
-      const result = await db.query(sql, [values]);
+      await db.query(sqlInsert, [values]);
+      console.log('Scores successfully inserted into the database.');
 
-      // Send success response
-      res.status(201).json({ message: 'Scores stored successfully.', insertedCount: result.affectedRows });
+      // Calculate final scores and grades
+      const studentScoresMap = {};
+
+      // Sum scores for each student and course
+      for (const score of scores) {
+          const { Student_Uni_id, Course_id, Score } = score;
+
+          // Initialize if not present
+          if (!studentScoresMap[Student_Uni_id]) {
+              studentScoresMap[Student_Uni_id] = {
+                  Course_id: Course_id,
+                  totalScore: 0,
+                  count: 0 // To keep track of the number of components
+              };
+          }
+
+          // Sum the scores
+          studentScoresMap[Student_Uni_id].totalScore += Score;
+          studentScoresMap[Student_Uni_id].count += 1; // Increment count of components
+
+          console.log(`Updated scores for ${Student_Uni_id} in course ${Course_id}: Total Score = ${studentScoresMap[Student_Uni_id].totalScore}, Components Count = ${studentScoresMap[Student_Uni_id].count}`);
+      }
+
+      // Now process each student to determine grades and insert into student_record_table
+      for (const [studentId, data] of Object.entries(studentScoresMap)) {
+          const { Course_id, totalScore } = data;
+
+          // Final score (sum of all components)
+          const finalScore = totalScore;
+          console.log(`Final score for ${studentId} in course ${Course_id}: ${finalScore}`);
+
+          // Determine grade and status
+          let grade, status;
+          if (finalScore >= 90) {
+            grade = 'A+';
+            status = 'Passed';
+        } else if (finalScore >= 85) {
+            grade = 'A';
+            status = 'Passed';
+        } else if (finalScore >= 80) {
+            grade = 'A-';
+            status = 'Passed';
+        } else if (finalScore >= 75) {
+            grade = 'B+';
+            status = 'Passed';
+        } else if (finalScore >= 70) {
+            grade = 'B';
+            status = 'Passed';
+        } else if (finalScore >= 65) {
+            grade = 'B-';
+            status = 'Passed';
+        } else if (finalScore >= 60) {
+            grade = 'C+';
+            status = 'Passed';
+        } else if (finalScore >= 55) {
+            grade = 'C';
+            status = 'Passed';
+        } else if (finalScore >= 50) {
+            grade = 'C-';
+            status = 'Passed';
+        } else if (finalScore >= 40) {
+            grade = 'D';
+            status = 'Passed';
+        } else {
+            grade = 'F';
+            status = 'Failed';
+        }
+          console.log(`Assigned grade for ${studentId}: ${grade}, Status: ${status}`);
+
+          // Fetch Semester ID and Credit Earned
+          const [studentData] = await db.query(`
+              SELECT Semester_id FROM student WHERE Student_Uni_id = ?
+          `, [studentId]);
+
+          const [courseData] = await db.query(`
+              SELECT Credit FROM course WHERE Course_id = ?
+          `, [Course_id]);
+
+          console.log("Semester Data:", studentData); // Log the fetched semester data
+          console.log("Credit Data:", courseData); // Log the fetched credit data
+          
+          const semesterId = studentData && studentData.length > 0 ? studentData[0].Semester_id : null;
+          const creditEarned = courseData && courseData.length > 0 ? courseData[0].Credit : null;
+
+          console.log("semester_id", semesterId); // Log the semester ID
+          console.log("credit", creditEarned); // Log the credit value
+
+          if (semesterId === null || creditEarned === null) {
+              console.log(`Error: Unable to find semester or credit information for ${studentId} in course ${Course_id}.`);
+              continue; // Skip this student if data is not found
+          }
+
+          // Insert into student_record_table
+          await db.query(`
+              INSERT INTO student_record_table (Student_Uni_id, Course_id, Semester_id, Grade, Credit_earned, Statues)
+              VALUES (?, ?, ?, ?, ?, ?)
+          `, [studentId, Course_id, semesterId, grade, creditEarned, status]);
+
+          console.log(`Record inserted for ${studentId} in student_record_table: Grade = ${grade}, Credit Earned = ${creditEarned}, Status = ${status}`);
+      }
+
+      res.status(201).json({ message: 'Scores stored and records updated successfully.' });
   } catch (error) {
-      console.error('Error storing student scores:', error);
+      console.error('Error processing student scores:', error);
       res.status(500).json({ message: 'Internal server error.' });
   }
 });
 
 
+//to Get Student Grades for a Course
+
+app.get('/api/studentGrades/:courseId', authenticateToken, async (req, res) => {
+  const { courseId } = req.params; // Extracting course ID from request parameters
+
+  // Log incoming request details
+  console.log('Received request to get student grades for course ID:', courseId);
+
+  try {
+      // Query to get enrolled students and their grades for the specified course
+      const [grades] = await db.query(`
+          SELECT 
+              u.FullName,
+              u.University_id,
+              sr.Grade,
+              sr.Statues AS Status,
+              e.Enrollment_date
+          FROM 
+              enrollment e
+          JOIN 
+              user u ON e.Student_Uni_id = u.University_id
+          JOIN 
+              student_record_table sr ON e.Student_Uni_id = sr.Student_Uni_id AND e.Course_id = sr.Course_id
+          WHERE 
+              e.Course_id = ?
+      `, [courseId]);
+
+      // Check if grades were found
+      if (grades.length === 0) {
+          return res.status(404).json({ message: 'No students found for this course or no grades available.' });
+      }
+
+      // Send success response with student grades data
+      res.status(200).json(grades);
+  } catch (error) {
+      console.error('Error retrieving student grades:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+//API Endpoint for Editing Student Grades
+app.put('/api/studentAssessmentScores', authenticateToken, async (req, res) => {
+  const scores = req.body; // Expecting an array of score objects
+
+  console.log('Received request to update student scores:', scores);
+
+  if (!Array.isArray(scores) || scores.length === 0) {
+      console.log('Error: Scores must be an array and cannot be empty.');
+      return res.status(400).json({ message: 'Scores must be an array and cannot be empty.' });
+  }
+
+  try {
+      const sqlDeleteScore = `
+          DELETE FROM student_assessment_scores 
+          WHERE Student_Uni_id = ? AND Course_id = ? AND Component_id = ?
+      `;
+
+      const sqlDeleteRecord = `
+          DELETE FROM student_record_table 
+          WHERE Student_Uni_id = ? AND Course_id = ? AND Semester_id = ?
+      `;
+
+      const sqlInsertScore = `
+          INSERT INTO student_assessment_scores (Student_Uni_id, Course_id, Component_id, Score)
+          VALUES (?, ?, ?, ?)
+      `;
+
+      // Prepare to calculate the final score for each student
+      const studentScoresMap = {};
+
+      // Loop through each score and process it
+      for (const score of scores) {
+          const { Student_Uni_id, Course_id, Component_id, Score } = score;
+
+          // Ensure all required fields are provided
+          if (!Student_Uni_id || !Score || !Course_id || !Component_id) {
+              return res.status(400).json({ message: 'Missing required fields (Student ID, Score, Course ID, or Component ID).' });
+          }
+
+          // Delete existing score record if found (no duplicates)
+          await db.query(sqlDeleteScore, [Student_Uni_id, Course_id, Component_id]);
+          console.log(`Deleted existing record for Student ${Student_Uni_id} in Course ${Course_id} for Component ${Component_id}`);
+
+          // Insert the new score
+          await db.query(sqlInsertScore, [Student_Uni_id, Course_id, Component_id, Score]);
+          console.log(`Inserted new record for Student ${Student_Uni_id} in Course ${Course_id} for Component ${Component_id}: Score = ${Score}`);
+
+          // Initialize or update the total score and component count for the student
+          if (!studentScoresMap[Student_Uni_id]) {
+              studentScoresMap[Student_Uni_id] = {
+                  Course_id: Course_id,
+                  totalScore: 0,
+                  count: 0 // To keep track of the number of components
+              };
+          }
+
+          studentScoresMap[Student_Uni_id].totalScore += Score;
+          studentScoresMap[Student_Uni_id].count += 1; // Increment count of components
+      }
+
+      // Now process each student to determine grades and update the student_record_table
+      for (const [studentId, data] of Object.entries(studentScoresMap)) {
+          const { Course_id, totalScore } = data;
+
+          // Calculate the final score (sum of all components)
+          const finalScore = totalScore;
+          console.log(`Final score for ${studentId} in course ${Course_id}: ${finalScore}`);
+
+          // Determine grade and status based on final score
+          let grade, status;
+          if (finalScore >= 90) {
+              grade = 'A+';
+              status = 'Passed';
+          } else if (finalScore >= 85) {
+              grade = 'A';
+              status = 'Passed';
+          } else if (finalScore >= 80) {
+              grade = 'A-';
+              status = 'Passed';
+          } else if (finalScore >= 75) {
+              grade = 'B+';
+              status = 'Passed';
+          } else if (finalScore >= 70) {
+              grade = 'B';
+              status = 'Passed';
+          } else if (finalScore >= 65) {
+              grade = 'B-';
+              status = 'Passed';
+          } else if (finalScore >= 60) {
+              grade = 'C+';
+              status = 'Passed';
+          } else if (finalScore >= 55) {
+              grade = 'C';
+              status = 'Passed';
+          } else if (finalScore >= 50) {
+              grade = 'C-';
+              status = 'Passed';
+          } else if (finalScore >= 40) {
+              grade = 'D';
+              status = 'Passed';
+          } else {
+              grade = 'F';
+              status = 'Failed';
+          }
+
+          console.log(`Assigned grade for ${studentId}: ${grade}, Status: ${status}`);
+
+          // Fetch Semester ID and Credit Earned
+          const [studentData] = await db.query(`
+              SELECT Semester_id FROM student WHERE Student_Uni_id = ?
+          `, [studentId]);
+
+          const [courseData] = await db.query(`
+              SELECT Credit FROM course WHERE Course_id = ?
+          `, [Course_id]);
+
+          const semesterId = studentData && studentData.length > 0 ? studentData[0].Semester_id : null;
+          const creditEarned = courseData && courseData.length > 0 ? courseData[0].Credit : null;
+
+          if (semesterId === null || creditEarned === null) {
+              console.log(`Error: Unable to find semester or credit information for ${studentId} in course ${Course_id}.`);
+              continue; // Skip this student if data is not found
+          }
+
+          // Delete existing record in student_record_table for the same student and course
+          await db.query(sqlDeleteRecord, [studentId, Course_id, semesterId]);
+          console.log(`Deleted existing record for ${studentId} in student_record_table for Course ${Course_id} and Semester ${semesterId}`);
+
+          // Update the student_record_table with the calculated grade, credit earned, and status
+          await db.query(`
+              INSERT INTO student_record_table 
+              (Student_Uni_id, Course_id, Semester_id, Grade, Credit_earned, Statues) 
+              VALUES (?, ?, ?, ?, ?, ?)
+          `, [studentId, Course_id, semesterId, grade, creditEarned, status]);
+
+          console.log(`Record updated for ${studentId} in student_record_table: Grade = ${grade}, Credit Earned = ${creditEarned}, Status = ${status}`);
+      }
+
+      // Send success response
+      res.status(200).json({ message: 'Scores deleted, updated, and records modified successfully.' });
+  } catch (error) {
+      console.error('Error processing scores:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 
 // Catch-all for undefined routes
 app.use((req, res) => {

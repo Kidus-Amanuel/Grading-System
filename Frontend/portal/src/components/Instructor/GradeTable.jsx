@@ -1,27 +1,35 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import EditGrade from './EditGrade'; // Import the EditGrade modal component
 
-const students = [
-    { id: 'S001', name: 'Alice Johnson', totalAssessment: 85 },
-    { id: 'S002', name: 'Bob Smith', totalAssessment: 76 },
-    { id: 'S003', name: 'Charlie Brown', totalAssessment: 92 },
-    { id: 'S004', name: 'Diana Prince', totalAssessment: 68 },
-    { id: 'S005', name: 'Edward Kenway', totalAssessment: 59 },
-];
-
-// Function to determine grade based on total assessment score
-const getGrade = (total) => {
-    if (total >= 90) return 'A';
-    if (total >= 80) return 'B';
-    if (total >= 70) return 'C';
-    if (total >= 60) return 'D';
-    return 'F';
-};
-
-export default function GradeTable() {
-    const [studentsData, setStudentsData] = useState(students);
+export default function GradeTable({ courseId }) {
+    const [studentsData, setStudentsData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState(null);
+
+    useEffect(() => {
+        const fetchStudentGrades = async () => {
+            try {
+                const response = await axios.get(`http://localhost:5000/api/studentGrades/${courseId}`, {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    },
+                });
+                setStudentsData(response.data);
+            } catch (err) {
+                console.error('Error fetching student grades:', err);
+                setError('Failed to fetch student grades. Please try again later.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (courseId) {
+            fetchStudentGrades();
+        }
+    }, [courseId]);
 
     const handleEditClick = (student) => {
         setSelectedStudent(student);
@@ -33,6 +41,14 @@ export default function GradeTable() {
         setSelectedStudent(null);
     };
 
+    if (loading) {
+        return <div>Loading student grades...</div>;
+    }
+
+    if (error) {
+        return <div className="text-red-500">{error}</div>;
+    }
+
     return (
         <div className="container mx-auto p-4">
             <h2 className="text-2xl font-semibold mb-4">Student Grades</h2>
@@ -42,18 +58,18 @@ export default function GradeTable() {
                         <tr>
                             <th scope="col" className="px-6 py-3">Student ID</th>
                             <th scope="col" className="px-6 py-3">Student Name</th>
-                            <th scope="col" className="px-6 py-3">Total Assessment</th>
                             <th scope="col" className="px-6 py-3">Grade</th>
+                            <th scope="col" className="px-6 py-3">Status</th>
                             <th scope="col" className="px-6 py-3">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {studentsData.map((student) => (
-                            <tr key={student.id} className="bg-white border-b hover:bg-gray-50">
-                                <td className="px-6 py-4 font-medium text-gray-900">{student.id}</td>
-                                <td className="px-6 py-4">{student.name}</td>
-                                <td className="px-6 py-4">{student.totalAssessment}</td>
-                                <td className="px-6 py-4">{getGrade(student.totalAssessment)}</td>
+                            <tr key={student.University_id} className="bg-white border-b hover:bg-gray-50">
+                                <td className="px-6 py-4 font-medium text-gray-900">{student.University_id}</td>
+                                <td className="px-6 py-4">{student.FullName}</td>
+                                <td className="px-6 py-4">{student.Grade}</td>
+                                <td className="px-6 py-4">{student.Status}</td>
                                 <td className="px-6 py-4">
                                     <button 
                                         onClick={() => handleEditClick(student)} 
@@ -70,7 +86,8 @@ export default function GradeTable() {
             <EditGrade 
                 open={modalOpen} 
                 onClose={handleCloseModal} 
-                student={selectedStudent} // Pass the selected student data to the modal
+                student={selectedStudent} 
+                courseId={courseId} // Pass the courseId to the modal
             />
         </div>
     );
