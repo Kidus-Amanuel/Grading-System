@@ -26,6 +26,9 @@ import InsCourseStudent from './components/Instructor/InsCourseStudent.jsx';
 import Assessment from './components/Instructor/Assessment.jsx';
 import StudentGrade from './components/Instructor/StudentGrade.jsx';
 import CourseEnrollment from './components/Student/CourseEnrollment.jsx';
+import RegistrasDashboard from './pages/Registrar/RegistrasDashboard.jsx';
+import RegistrarSide from './components/Registrar/RegistrarSide.jsx';
+import RegistrasProfile from './pages/Registrar/RegistrasProfile.jsx';
 
 function App() {
   const location = useLocation();
@@ -41,12 +44,14 @@ function App() {
   ];
   const instructorRoutes = ['/InstructorCourses', '/InstructorGrade', '/InstructorProfile','/InsCourseStudent','/Assessment','/StudentGrade'];
   const studentRoutes = ['/StudentGpa', '/StudentProfile','/CourseEnrollment'];
+  const RegistrarRoutes = ['/RegistrarDashboard','/RegistrarProfile'];
 
   // Determine which sidebar to show
   const showDeanSidebar = deanRoutes.includes(location.pathname);
   const showDepartmentSidebar = departmentRoutes.includes(location.pathname);
   const showInstructorSidebar = instructorRoutes.includes(location.pathname);
   const showStudentSidebar = studentRoutes.includes(location.pathname);
+  const showRegistrarSidebar = RegistrarRoutes.includes(location.pathname);
 
   // Check if current path is the login page
   const isLoginPage = location.pathname === '/Login';
@@ -59,6 +64,7 @@ function App() {
           {showDepartmentSidebar && <DepartmentSide />}
           {showInstructorSidebar && <InstructorSide />}
           {showStudentSidebar && <StudentSide />}
+          {showRegistrarSidebar && <RegistrarSide />}
         </div>
       )}
       <div className="md:flex-1 overflow-y-auto overflow-x-hidden">
@@ -84,6 +90,8 @@ function App() {
           <Route path="/StudentGpa" element={<StudentGpa />} />
           <Route path="/StudentProfile" element={<StudentProfile />} />
           <Route path="/CourseEnrollment" element={<CourseEnrollment/>} />
+          <Route path="/RegistrarDashboard" element={<RegistrasDashboard/>} />
+          <Route path="/RegistrarProfile" element={<RegistrasProfile/>} />
         </Routes>
       </div>
     </div>

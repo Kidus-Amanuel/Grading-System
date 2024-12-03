@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Import Axios for API calls
+import SignUpModal from './SignUp'; // Import SignUpModal component
 
 const MODAL_STYLES = {
     position: 'fixed',
@@ -42,6 +43,8 @@ export default function Login({ open, onClose }) {
     const [password, setpassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const [isOpen, setIsOpen] = useState(false);
+
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -57,16 +60,13 @@ export default function Login({ open, onClose }) {
                 password,
             });
 
-            // Save JWT token to localStorage or sessionStorage for subsequent requests
             localStorage.setItem('token', response.data.token);
 
-            // Get the user role and route from the response
             const { route } = response.data;
-            navigate(route); // Navigate to the appropriate route
-
+            navigate(route);
         } catch (error) {
             if (error.response) {
-                setError(error.response.data.message); // Set error message from backend
+                setError(error.response.data.message);
             } else {
                 setError('An error occurred. Please try again later.');
             }
@@ -81,7 +81,7 @@ export default function Login({ open, onClose }) {
             <div style={MODAL_STYLES}>
                 <div className='flex justify-between items-center mb-4'>
                     <button onClick={onClose} style={CLOSE_BUTTON_STYLES}>
-                        <svg className="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                        <svg className="w-6 h-6 text-gray-800 dark:text-white" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
                             <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L17.94 6M18 18L6.06 6" />
                         </svg>
                     </button>
@@ -115,7 +115,7 @@ export default function Login({ open, onClose }) {
                                 className="w-full px-4 py-2 rounded-lg border border-gray-400"
                                 id="password"
                                 name="password"
-                                type="password" // Change type to password for security
+                                type="password"
                                 value={password}
                                 onChange={(e) => setpassword(e.target.value)}
                                 required
@@ -128,6 +128,19 @@ export default function Login({ open, onClose }) {
                             </button>
                         </div>
                     </form>
+
+                    {/* Add a sign-up link */}
+                    <p className="mt-4 text-sm text-gray-600">
+                        Don't have an account?{' '}
+                        <button
+                            onClick={()=> setIsOpen(true)}
+                            className="text-blue-600 hover:underline"
+                        >
+                            Sign Up
+                        </button>
+                        <SignUpModal open={isOpen} onClose={()=> setIsOpen(false)}/>
+
+                    </p>
                 </div>
             </div>
         </>,

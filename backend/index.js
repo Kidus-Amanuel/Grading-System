@@ -54,7 +54,7 @@ app.post('/api/login', async (req, res) => {
 
   try {
     const [users] = await db.query(
-      'SELECT Userid, University_id, FullName, Passwords, Role_id, College_id ,Department_id FROM user WHERE University_id = ?',
+      'SELECT Userid, University_id, FullName, Passwords, Role_id, College_id, Department_id, Approve_status FROM user WHERE University_id = ?',
       [UniversityID]
     );
 
@@ -66,6 +66,11 @@ app.post('/api/login', async (req, res) => {
 
     if (password !== user.Passwords) {
       return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+
+    // Check if the user is approved
+    if (user.Approve_status !== 'Approved') {
+      return res.status(403).json({ message: 'User not approved. Please contact the admin.' });
     }
 
     // Generate JWT
@@ -87,6 +92,7 @@ app.post('/api/login', async (req, res) => {
       4: '/StudentGpa', // Student
       2: '/DepartmentStudents', // Department Head
       3: '/InstructorCourses', // Instructor
+      5: '/RegistrarDashboard', // Registrar
     };
 
     // Return token and user details
@@ -108,6 +114,9 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+
+
+
 
 // Get departments endpoint
 app.get('/api/departments', authenticateToken, async (req, res) => {
@@ -1654,6 +1663,272 @@ app.put('/api/studentAssessmentScores', authenticateToken, async (req, res) => {
       res.status(500).json({ message: 'Internal server error.' });
   }
 });
+
+
+// GET: Fetch Registrar Stats
+app.get('/api/registrar/stats', authenticateToken, async (req, res) => {
+  try {
+      const [stats] = await db.query(`
+          SELECT 
+              (SELECT COUNT(*) FROM user) AS totalUsers,
+              (SELECT COUNT(*) FROM user WHERE Approve_status = 'Approved') AS approvedUsers,
+              (SELECT COUNT(*) FROM user WHERE Approve_status = 'Pending') AS pendingApprovals,
+              (SELECT COUNT(*) FROM user WHERE Verification_status = 'Verified') AS verifiedUsers
+      `);
+
+      res.status(200).json(stats[0]);
+  } catch (error) {
+      console.error('Error fetching stats:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+
+// GET: Fetch Pending Approvals
+app.get('/api/registrar/pending-users', authenticateToken, async (req, res) => {
+  try {
+      const [users] = await db.query(`
+          SELECT 
+              Userid, FullName, Email, 
+              (SELECT Role_name FROM roles WHERE Role_id = user.Role_id) AS Role,
+              Approve_status
+          FROM 
+              user
+          WHERE 
+              Approve_status = 'Pending'
+      `);
+
+      res.status(200).json(users);
+  } catch (error) {
+      console.error('Error fetching pending users:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// POST: Approve User
+app.post('/api/registrar/approve-user/:userId', authenticateToken, async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+      const [result] = await db.query(`
+          UPDATE user 
+          SET Approve_status = 'Approved' 
+          WHERE Userid = ?
+      `, [userId]);
+
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: 'User not found.' });
+      }
+
+      res.status(200).json({ message: 'User approved successfully.' });
+  } catch (error) {
+      console.error('Error approving user:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// POST: Reject User
+app.post('/api/registrar/reject-user/:userId', authenticateToken, async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+      const [result] = await db.query(`
+          UPDATE user 
+          SET Approve_status = 'Rejected' 
+          WHERE Userid = ?
+      `, [userId]);
+
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: 'User not found.' });
+      }
+
+      res.status(200).json({ message: 'User rejected successfully.' });
+  } catch (error) {
+      console.error('Error rejecting user:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// GET: Search Users
+app.get('/api/registrar/search-users', authenticateToken, async (req, res) => {
+  const { query } = req.query;
+
+  try {
+      const [users] = await db.query(`
+          SELECT 
+              Userid, FullName, Email, 
+              (SELECT Role_name FROM roles WHERE Role_id = user.Role_id) AS Role,
+              Approve_status
+          FROM 
+              user
+          WHERE 
+              FullName LIKE ? OR Email LIKE ?
+      `, [`%${query}%`, `%${query}%`]);
+
+      res.status(200).json(users);
+  } catch (error) {
+      console.error('Error searching users:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+
+// GET: Fetch all colleges
+app.get('/api/colleges', async (req, res) => {
+  try {
+      // Query to fetch all colleges
+      const [colleges] = await db.query(`SELECT * FROM college`);
+
+      // Send the result as a JSON response
+      res.status(200).json(colleges);
+  } catch (error) {
+      console.error('Error fetching colleges:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// GET: Fetch all departments for a specific college
+app.get('/api/collegess/:collegeId/departments', async (req, res) => {
+  const { collegeId } = req.params;
+
+  try {
+      // Query to fetch departments by college ID
+      const [departments] = await db.query(
+          `SELECT * FROM department WHERE College_id = ?`, 
+          [collegeId]
+      );
+
+      if (departments.length === 0) {
+          return res.status(404).json({ message: 'No departments found for this college.' });
+      }
+
+      // Send the departments as a JSON response
+      res.status(200).json(departments);
+  } catch (error) {
+      console.error('Error fetching departments:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// GET: Fetch all batches
+app.get('/api/batches', async (req, res) => {
+  try {
+      // Query to fetch all batches
+      const [batches] = await db.query(`SELECT * FROM batche`);
+
+      // Send the result as a JSON response
+      res.status(200).json(batches);
+  } catch (error) {
+      console.error('Error fetching batches:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// GET: Fetch all roles
+app.get('/api/roles', async (req, res) => {
+  try {
+      // Query to fetch all roles
+      const [roles] = await db.query(`SELECT * FROM roles`);
+
+      // Send the result as a JSON response
+      res.status(200).json(roles);
+  } catch (error) {
+      console.error('Error fetching roles:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+// Get semesters for a specific department
+app.get('/api/departmentss/:id/semesters', async (req, res) => {
+  const { id } = req.params; // Get the department ID from the request parameters
+
+  try {
+      const query = `
+          SELECT 
+              s.Semester_id AS id,
+              s.Semestername AS name,
+              s.Years AS year,
+              s.Max_ects AS maxEcts
+          FROM 
+              semesters s
+          WHERE 
+              s.Department_id = ?;
+      `;
+
+      const [results] = await db.execute(query, [id]);
+
+      if (results.length === 0) {
+          return res.status(404).json({ message: 'No semesters found for this department.' });
+      }
+
+      res.json(results); // Return the semesters for the department
+  } catch (error) {
+      console.error("Error fetching semesters:", error);
+      res.status(500).json({ message: 'Failed to fetch semesters.' });
+  }
+});
+
+app.post('/signup', async (req, res) => {
+  const {
+    universityId,
+    fullName,
+    email,
+    password,
+    roleId,
+    collegeId,
+    departmentId,
+    batch,
+    semester,
+  } = req.body;
+
+  try {
+    // Insert into `user` table
+    const userQuery = `
+      INSERT INTO user 
+      (University_id, FullName, Email, Passwords, Role_id, College_id, Department_id) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    const userParams = [
+      universityId,
+      fullName,
+      email,
+      password, // No hashing applied
+      roleId,
+      (roleId === "5" ) ? null : collegeId, // College is not required for College Dean or Registrar
+      (roleId === "1" || roleId === "5") ? null : departmentId, // Department is not required for College Dean
+    ];
+
+    const [userResult] = await db.execute(userQuery, userParams);
+
+    // If the role is student, insert into `student` table
+    if (roleId === '4') { // Assuming '4' corresponds to 'Student'
+      const studentQuery = `
+        INSERT INTO student (Student_Uni_id, Batch_id, Department_id, Semester_id)
+        VALUES (?, ?, ?, ?)
+      `;
+      const studentParams = [
+        universityId,
+        batch || null,
+        departmentId || null,
+        semester || null,
+      ];
+      await db.execute(studentQuery, studentParams);
+    }
+
+    res.status(201).json({ message: 'User added successfully.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occurred while adding the user.' });
+  }
+});
+
+
+
+
+
 
 // Catch-all for undefined routes
 app.use((req, res) => {
