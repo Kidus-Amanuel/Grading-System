@@ -1925,9 +1925,80 @@ app.post('/signup', async (req, res) => {
   }
 });
 
+app.post('/grade-submission-status', authenticateToken, async (req, res) => {
+  const { courseId } = req.body;
 
+  try {
+      // Step 1: Retrieve the semesterId from the course table
+      const [courseResult] = await db.query(`
+          SELECT Semester_id FROM course WHERE Course_id = ?
+      `, [courseId]);
 
+      if (courseResult.length === 0) {
+          return res.status(404).json({ message: 'Course not found.' });
+      }
 
+      const semesterId = courseResult[0].Semester_id;
+
+      // Step 2: Delete the existing entry for the course
+      await db.query(`
+          DELETE FROM grade_submission_status 
+          WHERE Course_id = ?
+      `, [courseId]);
+
+      // Step 3: Insert the new entry
+      const [result] = await db.query(`
+          INSERT INTO grade_submission_status (Semester_id, Course_id, SubmittedCount)
+          VALUES (?, ?, 1)
+      `, [semesterId, courseId]);
+
+      res.status(200).json({ message: 'Submission status updated successfully.', result });
+  } catch (error) {
+      console.error('Error updating submission status:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Endpoint to get the years for a specific department
+app.get('/department/years', authenticateToken, async (req, res) => {
+  try {
+      const { DepartmentId } = req.user; // Get department ID from the request
+      console.log(DepartmentId)
+      const [yearsResult] = await db.query(`
+          SELECT DISTINCT Years FROM department WHERE Department_id = ?
+      `, [DepartmentId]);
+
+      if (yearsResult.length === 0) {
+          return res.status(404).json({ message: 'Department not found or no years available.' });
+      }
+
+      res.status(200).json(yearsResult);
+  } catch (error) {
+      console.error('Error fetching years:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Endpoint to get semesters for a specific year in the department retrieved from the token
+app.get('/department/years/:year/semesters', authenticateToken, async (req, res) => {
+  const { year } = req.params;
+  const { DepartmentId } = req.user; // Get department ID from the request object
+
+  try {
+      const [semestersResult] = await db.query(`
+          SELECT * FROM semesters WHERE Department_id = ? AND Years = ?
+      `, [DepartmentId, year]);
+
+      if (semestersResult.length === 0) {
+          return res.status(404).json({ message: 'No semesters found for this year.' });
+      }
+
+      res.status(200).json(semestersResult);
+  } catch (error) {
+      console.error('Error fetching semesters:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 
 
 // Catch-all for undefined routes

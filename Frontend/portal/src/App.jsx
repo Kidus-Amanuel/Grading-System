@@ -29,6 +29,7 @@ import CourseEnrollment from './components/Student/CourseEnrollment.jsx';
 import RegistrasDashboard from './pages/Registrar/RegistrasDashboard.jsx';
 import RegistrarSide from './components/Registrar/RegistrarSide.jsx';
 import RegistrasProfile from './pages/Registrar/RegistrasProfile.jsx';
+import DepartmentGrade from './pages/DepartmentHead/DepartmentGrade.jsx';
 
 function App() {
   const location = useLocation();
@@ -40,6 +41,7 @@ function App() {
     '/DepartmentCourses',
     '/DepartmentInstructor',
     '/DepartmentStudents',
+    '/DepartmentGrade',
     
   ];
   const instructorRoutes = ['/InstructorCourses', '/InstructorGrade', '/InstructorProfile','/InsCourseStudent','/Assessment','/StudentGrade'];
@@ -77,6 +79,7 @@ function App() {
           <Route path="/Profile" element={<Profile />} />
           <Route path="/DepartCourses" element={<DepartCourses/>} />
           <Route path="/Login" element={<Login />} />
+          <Route path="/DepartmentGrade" element={<DepartmentGrade/>} />
           <Route path="/DepartmentProfile" element={<DepartmentProfile />} />
           <Route path="/DepartmentCourses" element={<DepartmentCourses />} />
           <Route path="/DepartmentInstructor" element={<DepartmentInstructors />} />

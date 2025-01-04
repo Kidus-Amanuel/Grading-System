@@ -199,3 +199,11 @@ CREATE TABLE dean_adjustments (
     FOREIGN KEY (Course_id) REFERENCES course(Course_id)
 );
 
+CREATE TABLE grade_submission_status (
+    Status_id INT AUTO_INCREMENT PRIMARY KEY,
+    Semester_id INT,
+    Course_id INT,
+    SubmittedCount INT DEFAULT 0,
+    FOREIGN KEY (Semester_id) REFERENCES semesters(Semester_id),
+    FOREIGN KEY (Course_id) REFERENCES course(Course_id)
+);

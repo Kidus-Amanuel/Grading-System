@@ -34,6 +34,14 @@ export default function DepartmentSide(){
                             <div> <hr className=' w-65% '/></div>
 
                         </li>
+
+                        <li>
+                            <a href="/DepartmentGrade" className="hover:text-[#ded5f5] hover:bg-[#4f6f8f] block py-2 px-4 border-l-[0.2rem] border-transparent hover:border-[#A773DE] font-medium rounded-md transition-all duration-150 ease-in-out">
+                            Grade
+                            </a>
+                            <div> <hr className=' w-65% '/></div>
+
+                        </li>
                     
                         <li>
                             <a href="/DepartmentProfile" className="hover:text-[#ded5f5] hover:bg-[#4f6f8f] block py-2 px-4 border-l-[0.2rem] border-transparent hover:border-[#A773DE] font-medium rounded-md transition-all duration-150 ease-in-out">

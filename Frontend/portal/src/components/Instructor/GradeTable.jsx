@@ -41,6 +41,24 @@ export default function GradeTable({ courseId }) {
         setSelectedStudent(null);
     };
 
+    const handleSubmitGrades = async () => {
+        try {
+            const response = await axios.post(
+                `http://localhost:5000/grade-submission-status`,
+                { courseId, students: studentsData },
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    },
+                }
+            );
+            alert('Grades submitted successfully!');
+        } catch (err) {
+            console.error('Error submitting grades:', err);
+            alert('Failed to submit grades. Please try again.');
+        }
+    };
+
     if (loading) {
         return <div>Loading student grades...</div>;
     }
@@ -83,6 +101,16 @@ export default function GradeTable({ courseId }) {
                     </tbody>
                 </table>
             </div>
+
+            <div className="flex justify-end mt-4">
+                <button
+                    onClick={handleSubmitGrades}
+                    className="bg-green-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-green-600 transition"
+                >
+                    Submit Grades
+                </button>
+            </div>
+
             <EditGrade 
                 open={modalOpen} 
                 onClose={handleCloseModal} 
