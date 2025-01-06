@@ -1,22 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 export default function ListStudents() {
     const [groupedStudents, setGroupedStudents] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchStudents = async () => {
             try {
                 const response = await axios.get('http://localhost:5000/api/students', {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}` // Assuming you're storing the token in localStorage
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 });
                 const students = response.data;
-
-                // Group students by batch year
                 const grouped = groupStudentsByBatch(students);
                 setGroupedStudents(grouped);
             } catch (error) {
@@ -32,13 +32,18 @@ export default function ListStudents() {
 
     const groupStudentsByBatch = (students) => {
         return students.reduce((acc, student) => {
-            const batch = `${student.batchYear} Batch`; // Use the batch year from the API
+            const batch = `${student.batchYear} Batch`;
             if (!acc[batch]) {
                 acc[batch] = [];
             }
             acc[batch].push(student);
             return acc;
         }, {});
+    };
+
+    const handleStudentClick = (studentId) => {
+        console.log("Sending studentId:", studentId); // Log the studentId being sent
+        navigate('/DepartmentStudentInfo', { state: { studentId } }); // Pass Student_id in location state
     };
 
     if (loading) return <div>Loading...</div>;
@@ -60,7 +65,11 @@ export default function ListStudents() {
                             </thead>
                             <tbody>
                                 {students.map((student) => (
-                                    <tr key={student.Student_id} className="bg-white border-b hover:bg-gray-50">
+                                    <tr
+                                        key={student.Student_id}
+                                        className="bg-white border-b hover:bg-gray-50 cursor-pointer"
+                                        onClick={() => handleStudentClick(student.Student_id)} // Call the click handler
+                                    >
                                         <td className="px-6 py-4 font-medium text-gray-900">{student.Student_id}</td>
                                         <td className="px-6 py-4">{student.studentName}</td>
                                     </tr>

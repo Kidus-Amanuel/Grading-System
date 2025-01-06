@@ -11,22 +11,20 @@ export default function DepartmentGrade() {
     const [allGradesSubmitted, setAllGradesSubmitted] = useState(false);
 
     useEffect(() => {
-        // Fetch years when the component mounts
         const fetchYears = async () => {
             try {
                 const response = await axios.get('http://localhost:5000/department/years', {
                     headers: {
-                        Authorization: `Bearer ${localStorage.getItem('token')}` // Assuming token is stored in localStorage
+                        Authorization: `Bearer ${localStorage.getItem('token')}`
                     }
                 });
-                // Assuming the response contains an array of years
                 const years = response.data.map(year => year.Years);
-                setMaxYear(Math.max(...years)); // Set the maximum year
+                setMaxYear(Math.max(...years));
             } catch (error) {
                 console.error('Error fetching years:', error);
             }
         };
-        
+
         fetchYears();
     }, []);
 
@@ -37,7 +35,6 @@ export default function DepartmentGrade() {
         setCourses([]);
 
         if (year) {
-            // Fetch semesters for the selected year
             try {
                 const response = await axios.get(`http://localhost:5000/department/years/${year}/semesters`, {
                     headers: {
@@ -51,25 +48,90 @@ export default function DepartmentGrade() {
         }
     };
 
-    const handleSemesterChange = (e) => {
-        setSelectedSemester(e.target.value);
+    const handleSemesterChange = async (e) => {
+        const semesterName = e.target.value;
+        setSelectedSemester(semesterName);
+
         if (selectedYear) {
-            // Assuming you have a way to map semesters to courses, update courses here
-            const selectedCourseData = semesters.find(semester => semester.Semestername === e.target.value);
-            setCourses(selectedCourseData ? selectedCourseData.courses : []);
+            const selectedSemesterData = semesters.find(semester => semester.Semestername === semesterName);
+            if (selectedSemesterData) {
+                await fetchCourses(selectedSemesterData.Semester_id);
+            }
         }
     };
 
-    const checkGradesSubmitted = () => {
-        const allSubmitted = courses.every(course => course.gradesSubmitted);
-        setAllGradesSubmitted(allSubmitted);
+    const fetchCourses = async (semesterId) => {
+        try {
+            const response = await axios.get(`http://localhost:5000/department/${semesterId}/courses`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+
+            const courses = response.data.courses || response.data;
+            setCourses(courses);
+
+            // Check grades submission for each course
+            const gradesSubmissionResults = await Promise.all(
+                courses.map(course => checkGradesSubmission(course.Course_id))
+            );
+
+            // Update courses with grades submission status
+            const updatedCourses = courses.map((course, index) => ({
+                ...course,
+                gradesSubmitted: gradesSubmissionResults[index]
+            }));
+
+            setCourses(updatedCourses);
+
+            // Check if all grades are submitted
+            const allSubmitted = updatedCourses.every(course => course.gradesSubmitted);
+            setAllGradesSubmitted(allSubmitted);
+        } catch (error) {
+            console.error('Error fetching courses:', error);
+        }
     };
 
-    const handleCalculateGPA = () => {
-        alert('GPA calculation initiated!');
+    const checkGradesSubmission = async (courseId) => {
+        try {
+            const response = await axios.get(`http://localhost:5000/check-grade-submission/course/${courseId}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+
+            return response.data.hasGradesSubmitted;
+        } catch (error) {
+            console.error('Error checking grade submission status:', error);
+            return false;
+        }
     };
 
-    // Generate year options from 1 to maxYear
+    const handleCalculateGPA = async () => {
+        if (!selectedSemester || !selectedYear) {
+            alert('Please select a year and semester before calculating GPA.');
+            return;
+        }
+
+        try {
+            const selectedSemesterData = semesters.find(semester => semester.Semestername === selectedSemester);
+            
+            if (selectedSemesterData) {
+                const semesterId = selectedSemesterData.Semester_id;
+
+                const response = await axios.post('http://localhost:5000/calculate-department-gpa', {
+                    semesterId: semesterId
+                }, {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                console.log('GPA Calculation Response:', response.data);
+                alert('GPA calculations completed successfully!');
+            }
+        } catch (error) {
+            console.error('Error calculating GPA:', error);
+            alert('Failed to calculate GPA. Please try again.');
+        }
+    };
+
     const yearOptions = Array.from({ length: maxYear }, (_, index) => index + 1);
 
     return (
@@ -120,8 +182,8 @@ export default function DepartmentGrade() {
                                 </thead>
                                 <tbody>
                                     {courses.map(course => (
-                                        <tr key={course.id} className="hover:bg-gray-100">
-                                            <td className="py-2 px-4 border-b">{course.name}</td>
+                                        <tr key={course.Course_id} className="hover:bg-gray-100">
+                                            <td className="py-2 px-4 border-b">{course.Coursename}</td>
                                             <td className="py-2 px-4 border-b">
                                                 {course.gradesSubmitted ? (
                                                     <span className="text-green-600 font-semibold">Yes</span>
@@ -136,10 +198,7 @@ export default function DepartmentGrade() {
 
                             <div className="flex justify-center">
                                 <button
-                                    onClick={() => {
-                                        checkGradesSubmitted();
-                                        if (allGradesSubmitted) handleCalculateGPA();
-                                    }}
+                                    onClick={handleCalculateGPA}
                                     className={`px-6 py-2 text-white font-semibold rounded-lg transition duration-300 ${
                                         allGradesSubmitted
                                             ? 'bg-blue-500 hover:bg-blue-600'
