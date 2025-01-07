@@ -98,6 +98,7 @@ CREATE TABLE student (
     Student_Uni_id VARCHAR(50) UNIQUE NOT NULL,
     Batch_id INT,
     Department_id INT,
+    Years INT,
     Semester_id INT,
     Enrollment_status ENUM('Active', 'Inactive', 'Graduated', 'Dropped') DEFAULT 'Active',
     Created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -31,6 +31,7 @@ import RegistrarSide from './components/Registrar/RegistrarSide.jsx';
 import RegistrasProfile from './pages/Registrar/RegistrasProfile.jsx';
 import DepartmentGrade from './pages/DepartmentHead/DepartmentGrade.jsx';
 import Studentinfo from './components/Departmenthead/Studentinfo.jsx';
+import RegistrasManage from './pages/Registrar/RegistrasManage.jsx';
 
 function App() {
   const location = useLocation();
@@ -47,7 +48,7 @@ function App() {
   ];
   const instructorRoutes = ['/InstructorCourses', '/InstructorGrade', '/InstructorProfile','/InsCourseStudent','/Assessment','/StudentGrade'];
   const studentRoutes = ['/StudentGpa', '/StudentProfile','/CourseEnrollment'];
-  const RegistrarRoutes = ['/RegistrarDashboard','/RegistrarProfile'];
+  const RegistrarRoutes = ['/RegistrarDashboard','/RegistrarProfile','/RegistrasManage'];
 
   // Determine which sidebar to show
   const showDeanSidebar = deanRoutes.includes(location.pathname);
@@ -97,6 +98,7 @@ function App() {
           <Route path="/CourseEnrollment" element={<CourseEnrollment/>} />
           <Route path="/RegistrarDashboard" element={<RegistrasDashboard/>} />
           <Route path="/RegistrarProfile" element={<RegistrasProfile/>} />
+          <Route path="/RegistrasManage" element={<RegistrasManage/>} />
         </Routes>
       </div>
     </div>

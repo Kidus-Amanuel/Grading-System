@@ -1792,6 +1792,7 @@ app.get('/api/colleges', async (req, res) => {
 // GET: Fetch all departments for a specific college
 app.get('/api/collegess/:collegeId/departments', async (req, res) => {
   const { collegeId } = req.params;
+  console.log("collage",collegeId);
 
   try {
       // Query to fetch departments by college ID
@@ -1959,6 +1960,112 @@ app.post('/grade-submission-status', authenticateToken, async (req, res) => {
   }
 });
 
+/// check all grades are in this semseter
+
+app.get('/check-grade-submission/:semesterId', authenticateToken, async (req, res) => {
+  const { semesterId } = req.params;
+
+  try {
+      // Step 1: Retrieve all courses for the given semester
+      const [courseResults] = await db.query(`
+          SELECT Course_id FROM course WHERE Semester_id = ?
+      `, [semesterId]);
+
+      if (courseResults.length === 0) {
+          return res.status(404).json({ message: 'No courses found for this semester.' });
+      }
+
+      // Step 2: Check submission status for each course
+      const courseIds = courseResults.map(course => course.Course_id);
+      const [submissionResults] = await db.query(`
+          SELECT Course_id FROM grade_submission_status WHERE Course_id IN (?)
+      `, [courseIds]);
+
+      // Determine if all courses have grades submitted
+      const submittedCourseIds = submissionResults.map(result => result.Course_id);
+      const allGradesSubmitted = courseIds.every(courseId => submittedCourseIds.includes(courseId));
+
+      res.status(200).json({
+          allGradesSubmitted,
+          submittedCount: submittedCourseIds.length,
+          totalCourses: courseIds.length,
+          message: allGradesSubmitted ? 'All grades submitted.' : 'Some grades are not submitted.'
+      });
+  } catch (error) {
+      console.error('Error checking grade submission status:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Endpoint to check grade submission status for a specific course
+app.get('/check-grade-submission/course/:courseId', authenticateToken, async (req, res) => {
+  const { courseId } = req.params;
+
+  try {
+      // Step 1: Check if the course exists
+      const [courseResult] = await db.query(`
+          SELECT Course_id FROM course WHERE Course_id = ?
+      `, [courseId]);
+
+      if (courseResult.length === 0) {
+          return res.status(404).json({ message: 'Course not found.' });
+      }
+
+      // Step 2: Check submission status for the specified course
+      const [submissionResult] = await db.query(`
+          SELECT SubmittedCount FROM grade_submission_status WHERE Course_id = ?
+      `, [courseId]);
+
+      // Determine if the course has grades submitted
+      if (submissionResult.length === 0) {
+          return res.status(200).json({
+              courseId,
+              submittedCount: 0,
+              message: 'No submissions found for this course.'
+          });
+      }
+
+      const { SubmittedCount } = submissionResult[0];
+      const hasGradesSubmitted = SubmittedCount > 0;
+
+      res.status(200).json({
+          courseId,
+          hasGradesSubmitted,
+          submittedCount: SubmittedCount,
+          message: hasGradesSubmitted ? 'Grades have been submitted for this course.' : 'No grades submitted for this course.'
+      });
+  } catch (error) {
+      console.error('Error checking grade submission status for course:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Endpoint to get courses for a specific semester in a department
+app.get('/department/:semesterId/courses', authenticateToken, async (req, res) => {
+  const { semesterId } = req.params;
+  const { DepartmentId } = req.user; // Get department ID from the request
+  console.log("sem recive",semesterId);
+  console.log(DepartmentId);
+
+  try {
+      // Query to fetch courses for the specified semester and department
+      const [courseResults] = await db.query(`
+          SELECT Course_id, Coursecode, Coursename, Credit 
+          FROM course 
+          WHERE Semester_id = ? AND Department_id = ?
+      `, [semesterId, DepartmentId]);
+
+      if (courseResults.length === 0) {
+          return res.status(404).json({ message: 'No courses found for this semester in the specified department.' });
+      }
+
+      res.status(200).json(courseResults);
+  } catch (error) {
+      console.error('Error fetching courses:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
 // Endpoint to get the years for a specific department
 app.get('/department/years', authenticateToken, async (req, res) => {
   try {
@@ -1979,6 +2086,8 @@ app.get('/department/years', authenticateToken, async (req, res) => {
   }
 });
 
+
+
 // Endpoint to get semesters for a specific year in the department retrieved from the token
 app.get('/department/years/:year/semesters', authenticateToken, async (req, res) => {
   const { year } = req.params;
@@ -1996,6 +2105,267 @@ app.get('/department/years/:year/semesters', authenticateToken, async (req, res)
       res.status(200).json(semestersResult);
   } catch (error) {
       console.error('Error fetching semesters:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Endpoint to calculate GPAs for all students in a specific department for a given semester
+
+app.post('/calculate-department-gpa', authenticateToken, async (req, res) => {
+  const { semesterId } = req.body; // Expecting semesterId in the request body
+  const { DepartmentId } = req.user; // Get department ID from the request object
+
+  console.log('Extracted Semester ID:', semesterId);
+  console.log('Extracted Department ID:', DepartmentId);
+
+  try {
+      // Fetch all student university IDs in the specified department
+      const [students] = await db.query(`
+          SELECT Student_Uni_id
+          FROM student
+          WHERE Department_id = ?
+      `, [DepartmentId]);
+
+      if (students.length === 0) {
+          return res.status(404).json({ message: 'No students found in this department.' });
+      }
+
+      const gpaResults = [];
+
+      for (const student of students) {
+          const userId = student.Student_Uni_id;
+
+          // Fetch courses and grades for the student for the specified semester
+          const [studentRecords] = await db.query(`
+              SELECT sr.Grade, c.Credit
+              FROM student_record_table sr
+              JOIN enrollment e ON sr.Course_id = e.Course_id
+              JOIN course c ON e.Course_id = c.Course_id
+              WHERE sr.Student_Uni_id = ? AND sr.Semester_id = ?
+          `, [userId, semesterId]);
+
+          if (studentRecords.length === 0) continue;
+
+          // Calculate Semester GPA
+          let totalWeightedScore = 0;
+          let totalCredits = 0;
+
+          // Grade points mapping
+          const gradePointsMap = {
+              'A+': 4.0, 'A': 4.0, 'A-': 3.75,
+              'B+': 3.5, 'B': 3.0, 'B-': 2.75,
+              'C+': 2.5, 'C': 2.0, 'C-': 1.75,
+              'D': 1.0, 'F': 0.0
+          };
+
+          for (const record of studentRecords) {
+              const gradePoints = gradePointsMap[record.Grade] || 0;
+              totalWeightedScore += gradePoints * record.Credit;
+              totalCredits += record.Credit;
+          }
+
+          const semesterGPA = (totalCredits > 0) ? (totalWeightedScore / totalCredits).toFixed(2) : 0;
+
+          // Fetch previous GPA data for cumulative calculation
+          const [previousGPARecords] = await db.query(`
+              SELECT Semestergpa, Semestertotalcredit
+              FROM gpa_table
+              WHERE Student_Uni_id = ? ORDER BY Semester_id DESC LIMIT 1
+          `, [userId]);
+
+          let cumulativeGPA = semesterGPA;
+          let totalPreviousCredits = 0;
+
+          if (previousGPARecords.length > 0) {
+              const previousGPA = previousGPARecords[0].Semestergpa;
+              totalPreviousCredits = previousGPARecords[0].Semestertotalcredit;
+
+              cumulativeGPA = ((previousGPA * totalPreviousCredits) + (semesterGPA * totalCredits)) /
+                  (totalPreviousCredits + totalCredits);
+              cumulativeGPA = cumulativeGPA.toFixed(2);
+          }
+
+          // Insert or update the GPA table
+          await db.query(`
+              INSERT INTO gpa_table (Student_Uni_id, Semester_id, Semestergpa, Semestertotalcredit, Cumulativegpa, Cumulativecredit)
+              VALUES (?, ?, ?, ?, ?, ?)
+              ON DUPLICATE KEY UPDATE
+                  Semestergpa = VALUES(Semestergpa),
+                  Semestertotalcredit = VALUES(Semestertotalcredit),
+                  Cumulativegpa = VALUES(Cumulativegpa),
+                  Cumulativecredit = VALUES(Cumulativecredit)
+          `, [userId, semesterId, semesterGPA, totalCredits, cumulativeGPA, totalCredits]);
+
+          gpaResults.push({
+              studentId: userId,
+              semesterGPA,
+              cumulativeGPA
+          });
+      }
+
+      res.status(200).json({
+          message: 'GPA calculations completed successfully.',
+          results: gpaResults
+      });
+  } catch (error) {
+      console.error('Error calculating department GPA:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+ 
+// GPA for the specific semester
+app.get('/student/gpa/:semesterId', authenticateToken, async (req, res) => {
+  const { semesterId } = req.params;
+  const { UniversityId } = req.user; // Get University ID from request object
+  console.log(UniversityId);
+  
+  try {
+      // Fetch the student ID using the University ID
+      const [studentResult] = await db.query(`
+          SELECT Student_id 
+          FROM student 
+          WHERE Student_Uni_id = ?
+      `, [UniversityId]);
+
+      if (studentResult.length === 0) {
+          return res.status(404).json({ message: 'Student not found.' });
+      }
+
+      const studentId = studentResult[0].Student_id;
+      console.log(studentId);
+      // Fetch student's GPA for the specific semester
+      const [gpaResult] = await db.query(`
+          SELECT Semestergpa, Cumulativegpa 
+          FROM gpa_table 
+          WHERE Student_Uni_id = ? AND Semester_id = ?
+      `, [UniversityId, semesterId]);
+
+      if (gpaResult.length === 0) {
+          return res.status(404).json({ message: 'GPA not found for this semester.' });
+      }
+
+      res.status(200).json(gpaResult[0]); // Return the first result (only one should exist)
+  } catch (error) {
+      console.error('Error fetching GPA:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+// API to Get Course Grades for a Student in a Specific Semester
+app.get('/student/grades/:semesterId', authenticateToken, async (req, res) => {
+  const { semesterId } = req.params;
+  const { UniversityId } = req.user; // Get University ID from request object
+
+  try {
+      // Fetch the student ID using the University ID
+      const [studentResult] = await db.query(`
+          SELECT Student_id 
+          FROM student 
+          WHERE Student_Uni_id = ?
+      `, [UniversityId]);
+
+      if (studentResult.length === 0) {
+          return res.status(404).json({ message: 'Student not found.' });
+      }
+
+      const studentId = studentResult[0].Student_id;
+
+      // Fetch course grades for the student in the specified semester
+      const [gradesResult] = await db.query(`
+          SELECT c.Coursename, sr.Grade, sr.Credit_earned
+          FROM student_record_table sr
+          JOIN course c ON sr.Course_id = c.Course_id
+          WHERE sr.Student_Uni_id = ? AND sr.Semester_id = ?
+      `, [UniversityId, semesterId]);
+
+      if (gradesResult.length === 0) {
+          return res.status(404).json({ message: 'No grades found for this semester.' });
+      }
+
+      res.status(200).json(gradesResult); // Return the list of grades
+  } catch (error) {
+      console.error('Error fetching grades:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+
+// GPA for the specific semester with University ID as a parameter
+app.get('/stu/student/gpa/:studentId/:semesterId', authenticateToken, async (req, res) => {
+  const { studentId, semesterId } = req.params; // Get Student ID and Semester ID from URL parameters
+  console.log("Student ID:", studentId);
+  console.log("Semester ID:", semesterId);
+
+  try {
+      // Fetch the University ID using the Student ID
+      const [universityResult] = await db.query(`
+          SELECT Student_Uni_id 
+          FROM student 
+          WHERE Student_id = ?
+      `, [studentId]);
+
+      if (universityResult.length === 0) {
+          return res.status(404).json({ message: 'Student not found.' });
+      }
+
+      const universityId = universityResult[0].Student_Uni_id;
+      console.log("University ID:", universityId);
+      
+      // Fetch student's GPA for the specific semester
+      const [gpaResult] = await db.query(`
+          SELECT Semestergpa, Cumulativegpa 
+          FROM gpa_table 
+          WHERE Student_Uni_id = ? AND Semester_id = ?
+      `, [universityId, semesterId]);
+
+      if (gpaResult.length === 0) {
+          return res.status(404).json({ message: 'GPA not found for this semester.' });
+      }
+
+      res.status(200).json(gpaResult[0]); // Return the first result (only one should exist)
+  } catch (error) {
+      console.error('Error fetching GPA:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Grades for the specific semester with University ID as a parameter
+app.get('/stu/student/grades/:studentId/:semesterId', authenticateToken, async (req, res) => {
+  const { studentId, semesterId } = req.params; // Get Student ID and Semester ID from URL parameters
+  console.log("Student ID:", studentId);
+  console.log("Semester ID:", semesterId);
+
+  try {
+      // Fetch the University ID using the Student ID
+      const [universityResult] = await db.query(`
+          SELECT Student_Uni_id 
+          FROM student 
+          WHERE Student_id = ?
+      `, [studentId]);
+
+      if (universityResult.length === 0) {
+          return res.status(404).json({ message: 'Student not found.' });
+      }
+
+      const universityId = universityResult[0].Student_Uni_id;
+
+      // Fetch course grades for the student in the specified semester
+      const [gradesResult] = await db.query(`
+          SELECT c.Coursename, sr.Grade, sr.Credit_earned
+          FROM student_record_table sr
+          JOIN course c ON sr.Course_id = c.Course_id
+          WHERE sr.Student_Uni_id = ? AND sr.Semester_id = ?
+      `, [universityId, semesterId]);
+
+      if (gradesResult.length === 0) {
+          return res.status(404).json({ message: 'No grades found for this semester.' });
+      }
+
+      res.status(200).json(gradesResult); // Return the list of grades
+  } catch (error) {
+      console.error('Error fetching grades:', error);
       res.status(500).json({ message: 'Internal server error.' });
   }
 });

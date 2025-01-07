@@ -20,6 +20,13 @@ export default function RegistrarSide(){
                             <div> <hr className=' w-65% '/></div>
                         </li>
                         <li>
+                            <a href="/RegistrasManage" className="hover:text-[#ded5f5] hover:bg-[#4f6f8f] block py-2 px-4 border-l-[0.2rem] border-transparent hover:border-[#b09cc6] font-medium rounded-md transition-all duration-150 ease-in-out">
+                            Manage
+                            </a>
+                            <div> <hr className=' w-70% '/></div>
+                        </li>
+                        
+                        <li>
                             <a href="/RegistrarProfile" className="hover:text-[#ded5f5] hover:bg-[#4f6f8f] block py-2 px-4 border-l-[0.2rem] border-transparent hover:border-[#b09cc6] font-medium rounded-md transition-all duration-150 ease-in-out">
                             My detail
                             </a>
