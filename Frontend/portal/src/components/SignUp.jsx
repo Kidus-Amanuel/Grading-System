@@ -40,6 +40,7 @@ export default function SignUpModal({ open, onClose }) {
     departmentId: "",
     batch: "",
     semester: "",
+    year: "", // Added year to formData
   });
 
   const [roles, setRoles] = useState([]);
@@ -121,8 +122,9 @@ export default function SignUpModal({ open, onClose }) {
       departmentId: formData.departmentId || null,
       // Include batch and semester only if the role is a student
       ...(formData.roleId === "4" && {
-        batch: formData.batch, // Now this will be the batch ID
+        batch: formData.batch,
         semester: formData.semester,
+        year: formData.year, // Include year in payload
       }),
     };
 
@@ -253,10 +255,11 @@ export default function SignUpModal({ open, onClose }) {
                 </select>
               </div>
             </div>
-            {/* Row 4 (Password and Batch/Semester based on role) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {formData.roleId === "4" ? (
-                <>
+            
+            {/* Batch and Semester based on role */}
+            {formData.roleId === "4" && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block mb-1 text-sm font-medium">Batch</label>
                     <select
@@ -269,7 +272,24 @@ export default function SignUpModal({ open, onClose }) {
                       <option value="">Select Batch</option>
                       {batches.map((batch) => (
                         <option key={batch.Batch_id} value={batch.Batch_id}>
-                          {batch.Batchyear} {/* Display the year but use the ID as value */}
+                          {batch.Batchyear}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block mb-1 text-sm font-medium">Year</label>
+                    <select
+                      name="year"
+                      value={formData.year}
+                      onChange={handleChange}
+                      required
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-400"
+                    >
+                      <option value="">Select Year</option>
+                      {[...Array(10)].map((_, index) => (
+                        <option key={index + 1} value={index + 1}>
+                          {index + 1}
                         </option>
                       ))}
                     </select>
@@ -291,9 +311,12 @@ export default function SignUpModal({ open, onClose }) {
                       ))}
                     </select>
                   </div>
-                </>
-              ) : null}
-              <div className="mb-4">
+                </div>
+              </>
+            )}
+                      {/* Password and Confirm Password in the same row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
                 <label className="block mb-1 text-sm font-medium">Password</label>
                 <input
                   type="password"
@@ -304,7 +327,7 @@ export default function SignUpModal({ open, onClose }) {
                   className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-400"
                 />
               </div>
-              <div className="mb-4">
+              <div>
                 <label className="block mb-1 text-sm font-medium">Confirm Password</label>
                 <input
                   type="password"
@@ -316,6 +339,7 @@ export default function SignUpModal({ open, onClose }) {
                 />
               </div>
             </div>
+
           </div>
           <button
             type="submit"

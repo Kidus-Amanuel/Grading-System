@@ -13,23 +13,20 @@ export default function RegistrasManage() {
     const [selectedStudents, setSelectedStudents] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [departmentYears, setDepartmentYears] = useState([]);
+    const [nonEligibleStudents, setNonEligibleStudents] = useState([]);
 
-    // Fetch colleges when the component mounts
     useEffect(() => {
         axios.get('http://localhost:5000/api/colleges')
             .then(response => {
-                console.log('Colleges response:', response.data);
                 setColleges(response.data);
             })
             .catch(error => console.error('Error fetching colleges:', error));
     }, []);
 
-    // Fetch departments when a college is selected
     useEffect(() => {
         if (selectedCollege) {
-            axios.get(`http://localhost:5000/api/colleges/${selectedCollege}/departments`)
+            axios.get(`http://localhost:5000/api/collegess/${selectedCollege}/departments`)
                 .then(response => {
-                    console.log('Departments response:', response.data);
                     const departmentData = response.data.reduce((acc, department) => {
                         acc[department.College_id] = [...(acc[department.College_id] || []), department];
                         return acc;
@@ -40,48 +37,59 @@ export default function RegistrasManage() {
         }
     }, [selectedCollege]);
 
-    // Fetch students for a selected department
     useEffect(() => {
-        if (selectedDepartment) {
-            axios.get(`http://localhost:5000/api/students?department=${selectedDepartment}`)
-                .then(response => {
-                    console.log('Students response:', response.data);
-                    setStudents(response.data);
-                })
-                .catch(error => console.error('Error fetching students:', error));
-        }
-    }, [selectedDepartment]);
+        if (selectedDepartment && selectedYear) {
+            axios.get(`http://localhost:5000/eligible/students`, {
+                params: {
+                    department_id: selectedDepartment,
+                    year: selectedYear
+                },
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+            .then(response => {
+                setStudents(response.data.students || []);
+                setFilteredStudents(response.data.students || []);
+            })
+            .catch(error => console.error('Error fetching eligible students:', error));
 
-    // Dynamically set years for the selected department
+            // Fetch non-eligible students
+            axios.get(`http://localhost:5000/noteligible/students`, {
+                params: {
+                    department_id: selectedDepartment,
+                    year: selectedYear
+                },
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+            .then(response => {
+                setNonEligibleStudents(response.data.students || []);
+            })
+            .catch(error => console.error('Error fetching non-eligible students:', error));
+        }
+    }, [selectedDepartment, selectedYear]);
+
     useEffect(() => {
         if (selectedDepartment) {
-            const selectedDept = departments[selectedCollege]?.find(department => department.Department_id === parseInt(selectedDepartment)); // Convert to integer
-            console.log('Selected Department:', selectedDept);  // Debugging line
+            const selectedDept = departments[selectedCollege]?.find(department => department.Department_id === parseInt(selectedDepartment));
             if (selectedDept) {
-                const years = Array.from({ length: selectedDept.Years }, (_, index) => `${index + 1} Year`);
-                console.log('Years available for selected department:', years);  // Debugging line
+                const years = Array.from({ length: selectedDept.Years }, (_, index) => index + 1);
                 setDepartmentYears(years);
             } else {
                 setDepartmentYears([]);
             }
         } else {
-            setDepartmentYears([]); // Clear years if no department is selected
+            setDepartmentYears([]);
         }
     }, [selectedDepartment, selectedCollege, departments]);
-
-    const filterStudents = () => {
-        const filtered = students.filter(student =>
-            student.department === selectedDepartment &&
-            student.year === selectedYear
-        );
-        setFilteredStudents(filtered);
-    };
 
     const handleSearch = (e) => {
         setSearchTerm(e.target.value);
         const filtered = students.filter(student =>
-            student.name.toLowerCase().includes(e.target.value.toLowerCase()) ||
-            student.id.toLowerCase().includes(e.target.value.toLowerCase())
+            student.FullName.toLowerCase().includes(e.target.value.toLowerCase()) ||
+            student.Student_Uni_id.toLowerCase().includes(e.target.value.toLowerCase())
         );
         setFilteredStudents(filtered);
     };
@@ -95,19 +103,24 @@ export default function RegistrasManage() {
     };
 
     const handlePromotion = () => {
-        setStudents(students.map(student =>
-            selectedStudents.includes(student.id)
-                ? { ...student, currentSemester: getNextSemester(student.currentSemester) }
-                : student
-        ));
-        setSelectedStudents([]);
-    };
+        const token = localStorage.getItem('token'); // Retrieve the token
 
-    const getNextSemester = (currentSemester) => {
-        const [year, semester] = currentSemester.split(' ');
-        const nextSemester = semester === '1st' ? '2nd' : '1st';
-        const nextYear = nextSemester === '1st' ? `${parseInt(year) + 1}` : year;
-        return `${nextYear} ${nextSemester}`;
+        axios.post('http://localhost:5000/promote/students', {
+            studentIds: selectedStudents
+        }, {
+            headers: {
+                'Authorization': `Bearer ${token}` // Include the token in the headers
+            }
+        })
+        .then(response => {
+            console.log(response.data.message);
+            alert(response.data.message); // Optionally show a success message
+            setSelectedStudents([]); // Clear selected students
+        })
+        .catch(error => {
+            console.error('Error promoting students:', error);
+            alert('Error promoting students. Please try again.'); // Optionally show an error message
+        });
     };
 
     return (
@@ -116,9 +129,7 @@ export default function RegistrasManage() {
             <div className="min-h-screen bg-gray-50 p-8">
                 <header className="bg-white shadow rounded-lg mb-6">
                     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex justify-between">
-                        <h1 className="text-2xl font-semibold text-gray-800">
-                            Management Dashboard
-                        </h1>
+                        <h1 className="text-2xl font-semibold text-gray-800">Management Dashboard</h1>
                     </div>
                 </header>
 
@@ -130,7 +141,7 @@ export default function RegistrasManage() {
                             setSelectedCollege(e.target.value);
                             setSelectedDepartment('');
                             setFilteredStudents([]);
-                            setDepartmentYears([]); // Clear years when college changes
+                            setDepartmentYears([]);
                         }}
                     >
                         <option value="">Select College</option>
@@ -142,10 +153,7 @@ export default function RegistrasManage() {
                     <select
                         className="p-3 border rounded-lg bg-white shadow-md"
                         value={selectedDepartment}
-                        onChange={(e) => {
-                            console.log('Department selected:', e.target.value); // Debugging line
-                            setSelectedDepartment(e.target.value);
-                        }}
+                        onChange={(e) => setSelectedDepartment(e.target.value)}
                         disabled={!selectedCollege}
                     >
                         <option value="">Select Department</option>
@@ -162,18 +170,10 @@ export default function RegistrasManage() {
                     >
                         <option value="">Select Year</option>
                         {departmentYears.map((year, index) => (
-                            <option key={index} value={year}>{year}</option>
+                            <option key={index} value={year}>{year} Year</option>
                         ))}
                     </select>
                 </div>
-
-                <button
-                    className="mb-6 bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700 transition duration-300 shadow-md"
-                    onClick={filterStudents}
-                    disabled={!selectedYear}
-                >
-                    Show Students
-                </button>
 
                 <div className="mb-6">
                     <input
@@ -185,44 +185,31 @@ export default function RegistrasManage() {
                     />
                 </div>
 
-                <div className="bg-white shadow rounded-lg p-6">
+                <div className="bg-white shadow rounded-lg p-6 mb-6">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Eligible Students</h2>
                     <div className="overflow-x-auto">
                         <table className="min-w-full table-auto">
                             <thead className="bg-blue-100">
                                 <tr>
-                                    <th className="px-6 py-3">
-                                        <input
-                                            type="checkbox"
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setSelectedStudents(filteredStudents.map(s => s.id));
-                                                } else {
-                                                    setSelectedStudents([]);
-                                                }
-                                            }}
-                                            checked={filteredStudents.length > 0 && selectedStudents.length === filteredStudents.length}
-                                        />
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Student ID</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Current Semester</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3">Select</th>
+                                    <th className="px-6 py-3 text-left">Student ID</th>
+                                    <th className="px-6 py-3 text-left">Name</th>
+                                    <th className="px-6 py-3 text-left">GPA</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-gray-50 divide-y divide-gray-200">
                                 {filteredStudents.map((student) => (
-                                    <tr key={student.id} className="hover:bg-blue-50">
+                                    <tr key={student.Student_Uni_id} className="hover:bg-blue-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <input
                                                 type="checkbox"
-                                                checked={selectedStudents.includes(student.id)}
-                                                onChange={() => handleCheckboxChange(student.id)}
+                                                checked={selectedStudents.includes(student.Student_Uni_id)}
+                                                onChange={() => handleCheckboxChange(student.Student_Uni_id)}
                                             />
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-blue-900 font-medium">{student.id}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-blue-900">{student.name}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-blue-900">{student.currentSemester}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-blue-900">{student.status}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-blue-900 font-medium">{student.Student_Uni_id}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-blue-900">{student.FullName}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-blue-900">{student.Semestergpa}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -239,6 +226,32 @@ export default function RegistrasManage() {
                         Register Selected Students
                     </button>
                 </div>
+
+                {nonEligibleStudents.length > 0 && (
+                    <div className="mt-6 bg-white shadow rounded-lg p-6">
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">Non-Eligible Students</h2>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full table-auto">
+                                <thead className="bg-red-100">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left">Student ID</th>
+                                        <th className="px-6 py-3 text-left">Name</th>
+                                        <th className="px-6 py-3 text-left">Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-gray-50 divide-y divide-gray-200">
+                                    {nonEligibleStudents.map((student) => (
+                                        <tr key={student.Student_Uni_id} className="hover:bg-red-50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-red-900 font-medium">{student.Student_Uni_id}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-red-900">{student.FullName}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-red-900">{student.Reason}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
