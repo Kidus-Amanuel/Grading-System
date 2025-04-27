@@ -1,6 +1,6 @@
 <p align="center">
 
-<img src="Frontend/portal/src/assets/Slice 12 (1).jpg" alt="Student Grading System Demo" width="600"/>
+<img src="Frontend/portal/src/assets/Slice 12 (1).jpg" alt="Student Grading System Demo" width="1200"/>
 
 </p>
 
