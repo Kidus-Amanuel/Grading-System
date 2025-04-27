@@ -1,6 +1,6 @@
 <p align="center">
 
-<img src="assets/demo.png" alt="Student Grading System Demo" width="600"/>
+<img src="assets/Demo.jpg" alt="Student Grading System Demo" width="600"/>
 
 </p>
 
