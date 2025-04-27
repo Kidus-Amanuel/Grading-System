@@ -21,11 +21,11 @@ Design: Figma
 🔗 Explore My Portfolio : https://kidusaportfolio.netlify.app
 
 📚 How It Works
-Registrar manages user access and enrollment periods.
-College Dean oversees departments and academic structures.
-Department Heads manage curriculum and instructors.
-Instructors enter grades, calculate GPAs/CGPAs.
-Students register for courses and track their academic progress.
+-Registrar manages user access and enrollment periods.
+-College Dean oversees departments and academic structures.
+-Department Heads manage curriculum and instructors.
+-Instructors enter grades, calculate GPAs/CGPAs.
+-Students register for courses and track their academic progress.
 
 💬 Let's Connect
 If you found this project interesting or want to collaborate on something similar, feel free to reach out!
