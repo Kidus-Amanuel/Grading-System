@@ -32,7 +32,7 @@ A modern, full-stack academic management platform built to simplify grading, cou
 
 ## 📸 Demo
 
-🔗 [Watch Demo Video Here](#)  
+🔗 [Watch Demo Video Here](https://www.linkedin.com/posts/kidus-amanuel_student-grading-system-full-demo-welcome-ugcPost-7317491476366524416-RJmH?utm_source=share&utm_medium=member_desktop&rcm=ACoAADPpyUQBBN9y--ap0JJBpop0pH7ooz0QAgc)  
 🔗 [Explore My Portfolio](https://kidusaportfolio.netlify.app)
 
 ---
